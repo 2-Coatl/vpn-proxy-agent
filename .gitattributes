@@ -1,0 +1,244 @@
+# ============================================
+# Git Attributes - Line Ending Configuration
+# ============================================
+# Set default behavior: auto-normalize line endings
+* text=auto
+
+# ============================================
+# Shell Scripts - MUST use LF (Unix)
+# ============================================
+# Critical: These files MUST have LF for Linux/Vagrant execution
+*.sh text eol=lf
+*.bash text eol=lf
+
+# ============================================
+# Python - LF (Unix standard)
+# ============================================
+*.py text eol=lf
+*.pyx text eol=lf
+*.pxd text eol=lf
+
+# ============================================
+# Vagrant and Configuration
+# ============================================
+Vagrantfile text eol=lf
+*.conf text eol=lf
+*.config text eol=lf
+
+# ============================================
+# Systemd and Service Files - LF
+# ============================================
+*.service text eol=lf
+*.socket text eol=lf
+*.timer text eol=lf
+*.target text eol=lf
+
+# ============================================
+# Windows Scripts - CRLF
+# ============================================
+*.ps1 text eol=crlf
+*.psm1 text eol=crlf
+*.psd1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# ============================================
+# Web Files - LF
+# ============================================
+*.html text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.xml text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+
+# ============================================
+# Documentation - LF
+# ============================================
+*.md text eol=lf
+*.rst text eol=lf
+*.txt text eol=lf
+*.adoc text eol=lf
+LICENSE text eol=lf
+README text eol=lf
+AUTHORS text eol=lf
+CHANGELOG text eol=lf
+CONTRIBUTING text eol=lf
+
+# ============================================
+# Docker - LF
+# ============================================
+Dockerfile text eol=lf
+*.dockerfile text eol=lf
+.dockerignore text eol=lf
+docker-compose*.yml text eol=lf
+
+# ============================================
+# Git Configuration - LF
+# ============================================
+.gitattributes text eol=lf
+.gitignore text eol=lf
+.gitmodules text eol=lf
+.gitconfig text eol=lf
+
+# ============================================
+# CI/CD Configuration - LF
+# ============================================
+.travis.yml text eol=lf
+.gitlab-ci.yml text eol=lf
+*.jenkinsfile text eol=lf
+Jenkinsfile text eol=lf
+.github/**/* text eol=lf
+
+# ============================================
+# Programming Languages - LF
+# ============================================
+*.c text eol=lf
+*.cc text eol=lf
+*.cpp text eol=lf
+*.cxx text eol=lf
+*.h text eol=lf
+*.hpp text eol=lf
+*.java text eol=lf
+*.go text eol=lf
+*.rs text eol=lf
+*.rb text eol=lf
+*.php text eol=lf
+*.pl text eol=lf
+*.perl text eol=lf
+
+# ============================================
+# SQL and Database - LF
+# ============================================
+*.sql text eol=lf
+
+# ============================================
+# Configuration and Data Formats
+# ============================================
+*.ini text
+*.cfg text
+*.toml text eol=lf
+*.properties text
+*.env text eol=lf
+.env* text eol=lf
+*.editorconfig text eol=lf
+
+# ============================================
+# Makefiles - TAB with LF
+# ============================================
+Makefile text eol=lf
+makefile text eol=lf
+*.mk text eol=lf
+*.make text eol=lf
+
+# ============================================
+# Binary Files - No conversion
+# ============================================
+# Images
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.bmp binary
+*.tiff binary
+*.tif binary
+*.webp binary
+
+# Documents
+*.pdf binary
+*.doc binary
+*.docx binary
+*.xls binary
+*.xlsx binary
+*.ppt binary
+*.pptx binary
+
+# Archives
+*.zip binary
+*.tar binary
+*.gz binary
+*.tgz binary
+*.bz2 binary
+*.7z binary
+*.rar binary
+*.iso binary
+
+# Fonts
+*.ttf binary
+*.otf binary
+*.eot binary
+*.woff binary
+*.woff2 binary
+
+# Executables and Libraries
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.a binary
+*.lib binary
+*.o binary
+*.obj binary
+*.pyc binary
+*.pyd binary
+
+# Audio/Video
+*.mp3 binary
+*.mp4 binary
+*.avi binary
+*.mov binary
+*.wav binary
+*.flac binary
+*.ogg binary
+*.webm binary
+
+# Database files
+*.db binary
+*.sqlite binary
+*.sqlite3 binary
+
+# Certificates and Keys
+*.pem binary
+*.key binary
+*.crt binary
+*.cer binary
+*.der binary
+*.p12 binary
+*.pfx binary
+*.jks binary
+
+# Other binary formats
+*.class binary
+*.jar binary
+*.war binary
+*.ear binary
+*.deb binary
+*.rpm binary
+
+# ============================================
+# Large File Storage (LFS) - if needed
+# ============================================
+# Uncomment these if you use Git LFS
+# *.psd filter=lfs diff=lfs merge=lfs -text
+# *.ai filter=lfs diff=lfs merge=lfs -text
+# *.sketch filter=lfs diff=lfs merge=lfs -text
+
+# ============================================
+# Special Cases - Linguist overrides
+# ============================================
+# Mark vendor code for GitHub statistics
+# vendor/* linguist-vendored
+# third_party/* linguist-vendored
+
+# Mark generated files
+# **/generated/** linguist-generated
+
+# Documentation
+# docs/* linguist-documentation

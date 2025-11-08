@@ -1,0 +1,15 @@
+[Unit]
+Description=SSH SOCKS5 Tunnel for VPN/Proxy
+After=network.target
+
+[Service]
+Type=simple
+User=%i
+ExecStart=/usr/bin/ssh -D 1080 -N vpn-server
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

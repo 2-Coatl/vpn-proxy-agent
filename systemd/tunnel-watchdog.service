@@ -1,0 +1,13 @@
+[Unit]
+Description=SSH Tunnel Watchdog
+After=network.target
+
+[Service]
+Type=simple
+User=%i
+ExecStart=%h/vpn-proxy-agent/scripts/watchdog_tunnel.sh
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

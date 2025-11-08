@@ -1,0 +1,228 @@
+# ============================================
+# Python
+# ============================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# ============================================
+# Vagrant
+# ============================================
+.vagrant/
+*.box
+.vagrant.d/
+
+# ============================================
+# IDEs y Editores
+# ============================================
+# JetBrains (PyCharm, IntelliJ IDEA, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+.*.swp
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# ============================================
+# Sistema Operativo
+# ============================================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+*.stackdump
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ============================================
+# Logs y Temporales
+# ============================================
+*.log
+logs/
+*.tmp
+*.temp
+*.bak
+*.swp
+*.pid
+*.seed
+*.pid.lock
+
+# ============================================
+# Backups
+# ============================================
+backups/
+*.backup
+*.bkp
+*.sql.gz
+*.tar.gz.backup
+
+# ============================================
+# Configuración Sensible
+# ============================================
+# Archivos con credenciales o datos sensibles
+.env
+.env.local
+.env.*.local
+secrets/
+*.key
+*.pem
+*.crt
+*.cer
+*.p12
+*.pfx
+config/local.conf
+config/secrets.conf
+config/*.secret.*
+
+# SSH
+id_rsa
+id_rsa.pub
+known_hosts
+authorized_keys
+
+# ============================================
+# Docker (si lo usas en el proyecto)
+# ============================================
+docker-compose.override.yml
+.dockerignore
+
+# ============================================
+# Node.js (si tienes frontend)
+# ============================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# ============================================
+# Build artifacts
+# ============================================
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+*.app
+
+# ============================================
+# Databases
+# ============================================
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+
+# ============================================
+# Específico del Proyecto
+# ============================================
+# Archivos de estado de túneles/servicios
+/var/run/*.pid
+/var/log/*.log
+
+# Configuraciones locales de desarrollo
+local_config/
+*.local
+
+# Archivos de prueba temporales
+test_output/
+temp_tests/
+
+# Certificados y llaves WireGuard
+*.conf.backup
+wg*.conf
+
+# ============================================
+# Documentación generada
+# ============================================
+docs/_build/
+site/
+.doctrees/
+
+# ============================================
+# Compresión y archivos
+# ============================================
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+*.bz2
+*.xz

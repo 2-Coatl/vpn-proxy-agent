@@ -1,0 +1,43 @@
+{
+  "id": "vpn-proxy-agent",
+  "version": "1.0.0",
+  "name": "VPN/Proxy Agent",
+  "description": "Complete VPN/Proxy setup with SSH tunneling and Docker integration",
+  "documentationURL": "https://github.com/your-org/vpn-proxy-agent",
+  "options": {
+    "version": {
+      "type": "string",
+      "proposals": ["1.0.0", "latest"],
+      "default": "latest",
+      "description": "Version of VPN/Proxy Agent to install"
+    },
+    "installDocker": {
+      "type": "boolean",
+      "default": true,
+      "description": "Install Docker and Docker Compose"
+    },
+    "installWireguard": {
+      "type": "boolean",
+      "default": false,
+      "description": "Install WireGuard VPN"
+    },
+    "setupSSH": {
+      "type": "boolean",
+      "default": true,
+      "description": "Configure SSH keys and tunnel"
+    },
+    "enableMonitoring": {
+      "type": "boolean",
+      "default": true,
+      "description": "Install monitoring tools (htop, netdata)"
+    }
+  },
+  "installsAfter": [
+    "ghcr.io/devcontainers/features/common-utils"
+  ],
+  "containerEnv": {
+    "VPN_PROXY_AGENT_VERSION": "${VERSION}",
+    "HTTP_PROXY": "socks5://localhost:1080",
+    "HTTPS_PROXY": "socks5://localhost:1080"
+  }
+}
