@@ -6,7 +6,7 @@
 # Usage: ./tests/test_utilities.sh
 # =============================================================================
 
-set -e
+set -euo pipefail
 
 # Setup
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -331,6 +331,45 @@ EOF
 }
 
 # -----------------------------------------------------------------------------
+# Script Safety Tests
+# -----------------------------------------------------------------------------
+
+test_scripts_enforce_strict_mode() {
+    echo ""
+    echo "=== Testing Script Error Handling Strictness ==="
+
+    local scripts_to_validate=(
+        "bootstrap.sh"
+        "installer/install.sh"
+        "scripts/backup_daily.sh"
+        "scripts/backup_system.sh"
+        "scripts/build_cpython.sh"
+        "scripts/build_wrapper.sh"
+        "scripts/dashboard.sh"
+        "scripts/diagnose_all.sh"
+        "scripts/feature_install.sh"
+        "scripts/health_check.sh"
+        "scripts/master_setup.sh"
+        "scripts/restart_services.sh"
+        "scripts/safe_update.sh"
+        "scripts/setup_docker.sh"
+        "scripts/setup_ssh.sh"
+        "scripts/setup_tunnel.sh"
+        "scripts/setup_wireguard.sh"
+        "scripts/validate_build.sh"
+        "scripts/validate_wrapper.sh"
+        "scripts/watchdog_tunnel.sh"
+        "tests/test_utilities.sh"
+    )
+
+    for script in "${scripts_to_validate[@]}"; do
+        local script_path="${PROJECT_ROOT}/${script}"
+        assert_true "[ -f '$script_path' ]" "${script} exists"
+        assert_true "grep -E '^set -euo pipefail$' '$script_path' >/dev/null" "${script} enforces strict error handling"
+    done
+}
+
+# -----------------------------------------------------------------------------
 # File Operation Tests
 # -----------------------------------------------------------------------------
 
@@ -386,6 +425,7 @@ main() {
     test_environment_setup
     test_env_sourcing_alignment
     test_env_preserves_script_context
+    test_scripts_enforce_strict_mode
     test_file_operations
     test_integration
     

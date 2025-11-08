@@ -6,7 +6,7 @@
 # Usage: curl -sSL https://raw.githubusercontent.com/org/repo/main/installer/install.sh | bash
 # =============================================================================
 
-set -e
+set -euo pipefail
 
 SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"

@@ -6,7 +6,7 @@
 # Usage: ./scripts/master_setup.sh
 # =============================================================================
 
-set -e
+set -euo pipefail
 
 SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
@@ -85,7 +85,7 @@ main() {
     log_step 7 10 "Configuring automated backups"
     cat > "${SCRIPTS_DIR}/backup_daily.sh" <<'EOFBACKUP'
 #!/bin/bash
-set -e
+set -euo pipefail
 
 SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
