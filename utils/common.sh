@@ -6,37 +6,19 @@
 # Usage: source utils/common.sh
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# Determinar la ruta absoluta del directorio de este script
-# -----------------------------------------------------------------------------
-SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
-SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+COMMON_UTILS_PATH="${BASH_SOURCE[0]:-$0}"
+COMMON_UTILS_DIR="$(cd "$(dirname "$COMMON_UTILS_PATH")" && pwd)"
 
-# -----------------------------------------------------------------------------
-# Cargar dependencias locales
-# -----------------------------------------------------------------------------
 DEPENDENCIES=("logging.sh" "validation.sh")
 
 for file in "${DEPENDENCIES[@]}"; do
-    FULL_PATH="${SCRIPT_DIR}/${file}"
+    FULL_PATH="${COMMON_UTILS_DIR}/${file}"
     if [[ -f "$FULL_PATH" ]]; then
         source "$FULL_PATH"
-        echo "Cargado: $FULL_PATH"
     else
         echo "Advertencia: No se encontró $FULL_PATH"
     fi
 done
-
-# -----------------------------------------------------------------------------
-# Cargar configuración si existe
-# -----------------------------------------------------------------------------
-CONFIG_FILE="${SCRIPT_DIR}/../config/versions.conf"
-if [[ -f "$CONFIG_FILE" ]]; then
-    source "$CONFIG_FILE"
-    echo "Configuración cargada desde $CONFIG_FILE"
-else
-    echo "Advertencia: No se encontró archivo de configuración en $CONFIG_FILE"
-fi
 
 # -----------------------------------------------------------------------------
 # OS Detection

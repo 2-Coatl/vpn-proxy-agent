@@ -1,0 +1,8 @@
+site_name: VPN Proxy Agent Docs
+nav:
+  - Home: index.md
+  - Repository Overview: about.md
+  - MkDocs Tutorial: mkdocs_tutorial.md
+docs_dir: docs
+theme:
+  name: readthedocs

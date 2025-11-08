@@ -7,32 +7,14 @@
 # Usage: source utils/validation.sh
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# Determinar la ruta absoluta del directorio de este script
-# -----------------------------------------------------------------------------
-SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
-SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+VALIDATION_UTILS_PATH="${BASH_SOURCE[0]:-$0}"
+VALIDATION_UTILS_DIR="$(cd "$(dirname "$VALIDATION_UTILS_PATH")" && pwd)"
 
-# -----------------------------------------------------------------------------
-# Cargar logging utilities si existen
-# -----------------------------------------------------------------------------
-LOGGING_FILE="${SCRIPT_DIR}/logging.sh"
+LOGGING_FILE="${VALIDATION_UTILS_DIR}/logging.sh"
 if [[ -f "$LOGGING_FILE" ]]; then
     source "$LOGGING_FILE"
-    echo "Cargado: $LOGGING_FILE"
 else
     echo "Advertencia: No se encontró $LOGGING_FILE"
-fi
-
-# -----------------------------------------------------------------------------
-# Cargar configuración si existe
-# -----------------------------------------------------------------------------
-CONFIG_FILE="${SCRIPT_DIR}/../config/versions.conf"
-if [[ -f "$CONFIG_FILE" ]]; then
-    source "$CONFIG_FILE"
-    echo "Configuración cargada desde $CONFIG_FILE"
-else
-    echo "Advertencia: No se encontró archivo de configuración en $CONFIG_FILE"
 fi
 
 # -----------------------------------------------------------------------------
