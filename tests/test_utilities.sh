@@ -370,6 +370,26 @@ test_scripts_enforce_strict_mode() {
 }
 
 # -----------------------------------------------------------------------------
+# Build Automation Tests
+# -----------------------------------------------------------------------------
+
+test_makefile_targets() {
+    echo ""
+    echo "=== Testing Makefile Targets ==="
+
+    local makefile_path="${PROJECT_ROOT}/Makefile"
+
+    assert_true "[ -f '$makefile_path' ]" "Makefile exists"
+    assert_true "grep -E '^help:' '$makefile_path' >/dev/null" "help target defined"
+    assert_true "grep -E '^test:' '$makefile_path' >/dev/null" "test target defined"
+    assert_true "grep -E '^test-python:' '$makefile_path' >/dev/null" "test-python target defined"
+    assert_true "grep -E '^docs-serve:' '$makefile_path' >/dev/null" "docs-serve target defined"
+    assert_true "grep -E '^docs-build:' '$makefile_path' >/dev/null" "docs-build target defined"
+
+    assert_true "make -C '$PROJECT_ROOT' -n help >/dev/null" "make help succeeds"
+}
+
+# -----------------------------------------------------------------------------
 # File Operation Tests
 # -----------------------------------------------------------------------------
 
@@ -426,6 +446,7 @@ main() {
     test_env_sourcing_alignment
     test_env_preserves_script_context
     test_scripts_enforce_strict_mode
+    test_makefile_targets
     test_file_operations
     test_integration
     
