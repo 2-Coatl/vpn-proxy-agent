@@ -390,6 +390,41 @@ test_makefile_targets() {
 }
 
 # -----------------------------------------------------------------------------
+# Documentation Tests
+# -----------------------------------------------------------------------------
+
+test_docs_site_content() {
+    echo ""
+    echo "=== Testing Documentation Assets ==="
+
+    local docs_dir="${PROJECT_ROOT}/docs"
+    local mkdocs_config="${PROJECT_ROOT}/mkdocs.yml"
+    local index_page="${docs_dir}/index.md"
+    local about_page="${docs_dir}/about.md"
+    local tutorial_page="${docs_dir}/mkdocs_tutorial.md"
+    local img_placeholder="${docs_dir}/img/.gitkeep"
+
+    assert_true "[ -d '$docs_dir' ]" "docs directory exists"
+    assert_true "[ -f '$mkdocs_config' ]" "mkdocs.yml exists"
+    assert_true "[ -f '$index_page' ]" "index.md exists"
+    assert_true "[ -f '$about_page' ]" "about.md exists"
+    assert_true "[ -f '$tutorial_page' ]" "mkdocs_tutorial.md exists"
+    assert_true "[ -f '$img_placeholder' ]" "docs/img/.gitkeep exists"
+
+    assert_true "grep -E '^# VPN Proxy Agent Knowledge Base' '$index_page' >/dev/null" "index.md has site heading"
+    assert_true "grep -E '^## Quick Start' '$index_page' >/dev/null" "index.md documents quick start"
+    assert_true "grep -E '^# Repository Overview' '$about_page' >/dev/null" "about.md has overview heading"
+    assert_true "grep -E '^## Current Inventory' '$about_page' >/dev/null" "about.md lists inventory"
+    assert_true "grep -E '^# MkDocs Tutorial for VPN Proxy Agent' '$tutorial_page' >/dev/null" "tutorial page heading present"
+
+    assert_true "grep -E '^site_name: ' '$mkdocs_config' >/dev/null" "mkdocs.yml defines site_name"
+    assert_true "grep -E 'Home: index\\.md' '$mkdocs_config' >/dev/null" "navigation includes Home"
+    assert_true "grep -E 'Repository Overview: about\\.md' '$mkdocs_config' >/dev/null" "navigation includes Repository Overview"
+    assert_true "grep -E 'MkDocs Tutorial: mkdocs_tutorial\\.md' '$mkdocs_config' >/dev/null" "navigation includes MkDocs Tutorial"
+    assert_true "grep -E 'name: readthedocs' '$mkdocs_config' >/dev/null" "readthedocs theme configured"
+}
+
+# -----------------------------------------------------------------------------
 # File Operation Tests
 # -----------------------------------------------------------------------------
 
@@ -446,6 +481,7 @@ main() {
     test_env_sourcing_alignment
     test_env_preserves_script_context
     test_scripts_enforce_strict_mode
+    test_docs_site_content
     test_makefile_targets
     test_file_operations
     test_integration
