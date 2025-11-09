@@ -158,6 +158,50 @@ create_directory() {
     return 0
 }
 
+# Create compressed archive from provided sources while validating them
+create_tarball() {
+    local output="$1"
+    local description="$2"
+    shift 2
+    local sources=("$@")
+    local existing_sources=()
+    local missing_sources=()
+
+    if [ -z "$output" ] || [ -z "$description" ]; then
+        log_error "create_tarball requires an output path and description"
+        return 1
+    fi
+
+    for path in "${sources[@]}"; do
+        if [ -e "$path" ]; then
+            existing_sources+=("$path")
+        else
+            missing_sources+=("$path")
+        fi
+    done
+
+    if [ ${#existing_sources[@]} -eq 0 ]; then
+        log_error "No valid sources found for $description archive"
+        return 1
+    fi
+
+    if [ ${#missing_sources[@]} -gt 0 ]; then
+        log_warn "Skipping missing sources for $description: ${missing_sources[*]}"
+    fi
+
+    local output_dir
+    output_dir="$(dirname "$output")"
+    create_directory "$output_dir"
+
+    if tar -czf "$output" "${existing_sources[@]}"; then
+        log_success "$description archive created: $output"
+        return 0
+    fi
+
+    log_error "Failed to create $description archive at $output"
+    return 1
+}
+
 # Download file with fallback (wget/curl)
 download_file() {
     local url="$1"
