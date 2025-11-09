@@ -133,6 +133,9 @@ chmod +x bootstrap.sh
 #   - Complete (Everything including WireGuard - 9 hours)
 ```
 
+> **Tip:** When provisioning with Vagrant, the bootstrap script now runs automatically during `vagrant up`. You can still SSH
+> into the VM and rerun `BOOTSTRAP_AUTO=1 ./bootstrap.sh` if you need to reset the environment.
+
 ---
 
 ## Installation
@@ -190,9 +193,14 @@ vagrant up
 # SSH into VM
 vagrant ssh
 
-# Run installer inside VM
+# Wait for provisioning to finish (bootstrap runs automatically)
+# Logs are written to /vagrant/logs/bootstrap_*.log
+
+# (Optional) SSH into VM for inspection or manual reruns
+vagrant ssh
 cd /vagrant
-./bootstrap.sh
+# Re-run bootstrap in automation mode if you need to reset
+BOOTSTRAP_AUTO=1 ./bootstrap.sh
 ```
 
 ---
@@ -386,9 +394,9 @@ pytest --cov=scripts tests/
 vagrant up
 vagrant ssh
 
-# Run installer
+# Bootstrap runs automatically; rerun in automation mode if needed
 cd /vagrant
-./bootstrap.sh --quick
+BOOTSTRAP_AUTO=1 ./bootstrap.sh --quick
 
 # Validate installation
 ./scripts/validate_build.sh

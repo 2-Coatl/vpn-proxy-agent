@@ -143,9 +143,10 @@ Vagrant.configure("2") do |config|
     echo "  VPN/Proxy Agent Development Environment"
     echo "================================================"
     echo ""
-    echo "To install the agent, run:"
+    echo "Bootstrap runs automatically during provisioning."
+    echo "To rerun manually:"
     echo "  cd /vagrant"
-    echo "  ./bootstrap.sh"
+    echo "  BOOTSTRAP_AUTO=1 ./bootstrap.sh"
     echo ""
     echo "VM IP: 192.168.56.10"
     echo "SSH: vagrant ssh"
@@ -182,10 +183,12 @@ Vagrant.configure("2") do |config|
   Project directory:
     /vagrant
   
-  Install the agent:
-    vagrant ssh
-    cd /vagrant
-    ./bootstrap.sh
+  Bootstrap status:
+    Provisioning runs ./bootstrap.sh automatically.
+    Check logs in /vagrant/logs/ or rerun with:
+      vagrant ssh
+      cd /vagrant
+      BOOTSTRAP_AUTO=1 ./bootstrap.sh
   
   Services available at:
     - SOCKS5 Proxy: localhost:1080
