@@ -52,13 +52,14 @@ DEFAULT_AUTO_INSTALL="$INSTALL_STANDARD"
 # -----------------------------------------------------------------------------
 
 # Determine if bootstrap should run without interactive prompts
-auto_mode_enabled() {
+detect_unattended_context() {
+    local tty_hint="${1:-}"
     local flag
 
     flag="${BOOTSTRAP_AUTO:-}"
     if [[ -n "$flag" ]]; then
         flag="${flag,,}"
-        if [[ "$flag" =~ ^(1|true|yes|y)$ ]]; then
+        if [[ "$flag" =~ ^(1|true|yes|y|on)$ ]]; then
             return 0
         fi
     fi
@@ -66,9 +67,52 @@ auto_mode_enabled() {
     flag="${CI:-}"
     if [[ -n "$flag" ]]; then
         flag="${flag,,}"
-        if [[ "$flag" =~ ^(1|true|yes|y)$ ]]; then
+        if [[ "$flag" =~ ^(1|true|yes|y|on)$ ]]; then
             return 0
         fi
+    fi
+
+    flag="${GITHUB_ACTIONS:-}"
+    if [[ -n "$flag" ]]; then
+        flag="${flag,,}"
+        if [[ "$flag" =~ ^(1|true|yes|y|on)$ ]]; then
+            return 0
+        fi
+    fi
+
+    flag="${DEBIAN_FRONTEND:-}"
+    if [[ -n "$flag" ]]; then
+        flag="${flag,,}"
+        if [[ "$flag" == "noninteractive" ]]; then
+            return 0
+        fi
+    fi
+
+    flag="${BOOTSTRAP_NON_INTERACTIVE:-}"
+    if [[ -n "$flag" ]]; then
+        flag="${flag,,}"
+        if [[ "$flag" =~ ^(1|true|yes|y|on)$ ]]; then
+            return 0
+        fi
+    fi
+
+    flag="${UNATTENDED:-}"
+    if [[ -n "$flag" ]]; then
+        flag="${flag,,}"
+        if [[ "$flag" =~ ^(1|true|yes|y|on)$ ]]; then
+            return 0
+        fi
+    fi
+
+    if [[ -n "$tty_hint" ]]; then
+        case "${tty_hint,,}" in
+            tty|interactive|prompt|manual)
+                return 1
+                ;;
+            notty|noninteractive|auto|automation|scripted)
+                return 0
+                ;;
+        esac
     fi
 
     if [ ! -t 0 ]; then
@@ -78,16 +122,20 @@ auto_mode_enabled() {
     return 1
 }
 
+auto_mode_enabled() {
+    detect_unattended_context "$@"
+}
+
 # Check whether we should auto-confirm prompts
 should_auto_confirm() {
-    if auto_mode_enabled; then
+    if detect_unattended_context "$@"; then
         return 0
     fi
 
-    local flag="${BOOTSTRAP_ASSUME_YES:-}"
+    local flag="${BOOTSTRAP_ASSUME_YES:-${ASSUME_YES:-}}"
     if [[ -n "$flag" ]]; then
         flag="${flag,,}"
-        if [[ "$flag" =~ ^(1|true|yes|y)$ ]]; then
+        if [[ "$flag" =~ ^(1|true|yes|y|on)$ ]]; then
             return 0
         fi
     fi
@@ -95,12 +143,26 @@ should_auto_confirm() {
     return 1
 }
 
-# Validate provided install type
-is_valid_install_type() {
-    local candidate="$1"
+normalize_install_type() {
+    local choice="${1:-}"
 
-    case "$candidate" in
-        "$INSTALL_QUICK"|"$INSTALL_STANDARD"|"$INSTALL_COMPLETE")
+    if [[ -z "$choice" ]]; then
+        return 1
+    fi
+
+    choice="${choice,,}"
+
+    case "$choice" in
+        "$INSTALL_QUICK"|quick|q|1)
+            echo "$INSTALL_QUICK"
+            return 0
+            ;;
+        "$INSTALL_STANDARD"|standard|std|2)
+            echo "$INSTALL_STANDARD"
+            return 0
+            ;;
+        "$INSTALL_COMPLETE"|complete|full|3)
+            echo "$INSTALL_COMPLETE"
             return 0
             ;;
     esac
@@ -108,27 +170,38 @@ is_valid_install_type() {
     return 1
 }
 
+# Validate provided install type
+is_valid_install_type() {
+    normalize_install_type "$1" >/dev/null
+}
+
 # Resolve the installation type respecting automation flags
 resolve_install_type() {
     local cli_choice="${1-}"
 
     if [ -n "$cli_choice" ]; then
-        echo "$cli_choice"
-        return 0
+        local normalized_cli
+        if normalized_cli=$(normalize_install_type "$cli_choice"); then
+            echo "$normalized_cli"
+            return 0
+        fi
+
+        log_error "Unknown install type '$cli_choice'"
+        return 1
     fi
 
     local env_choice="${BOOTSTRAP_INSTALL_TYPE:-}"
 
-    if auto_mode_enabled; then
+    if auto_mode_enabled "$@"; then
         local candidate="$DEFAULT_AUTO_INSTALL"
 
         if [ -n "$env_choice" ]; then
-            candidate="$env_choice"
-        fi
-
-        if ! is_valid_install_type "$candidate"; then
-            log_warn "Invalid install type '$candidate' provided for automation. Falling back to '$DEFAULT_AUTO_INSTALL'."
-            candidate="$DEFAULT_AUTO_INSTALL"
+            local normalized_env
+            if normalized_env=$(normalize_install_type "$env_choice"); then
+                candidate="$normalized_env"
+            else
+                log_warn "Invalid install type '$env_choice' provided for automation. Falling back to '$DEFAULT_AUTO_INSTALL'."
+            fi
         fi
 
         echo "$candidate"
@@ -136,8 +209,9 @@ resolve_install_type() {
     fi
 
     if [ -n "$env_choice" ]; then
-        if is_valid_install_type "$env_choice"; then
-            echo "$env_choice"
+        local normalized_env
+        if normalized_env=$(normalize_install_type "$env_choice"); then
+            echo "$normalized_env"
             return 0
         fi
         log_warn "Ignoring invalid BOOTSTRAP_INSTALL_TYPE='$env_choice'"
