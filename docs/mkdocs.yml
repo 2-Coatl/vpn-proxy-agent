@@ -6,6 +6,55 @@ nav:
   - Material for MkDocs: material_for_mkdocs.md
   - PR Workflow Guidance: pr_workflow.md
   - Shell Script Quality Procedure: shell_script_quality.md
+  - Plan MCP sin Docker: mcp_server_plan.md
+  - Architecture Decisions:
+      - ADR 0003: adr/0003-mkdocs-local-automation.md
 docs_dir: docs
 theme:
-  name: readthedocs
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: deep orange
+      toggle:
+        icon: material/weather-night
+        name: Cambiar a modo oscuro
+    - scheme: slate
+      primary: green
+      accent: deep purple
+      toggle:
+        icon: material/weather-sunny
+        name: Cambiar a modo claro
+  font:
+    text: "Merriweather Sans"
+    code: "Red Hat Mono"
+  icon:
+    logo: material/shield-check
+  features:
+    - navigation.footer
+markdown_extensions:
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed
+  - admonition
+  - pymdownx.details
+extra:
+  social:
+    - icon: fontawesome/brands/youtube
+      link: https://youtube.com/tu-canal
+      name: YouTube
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/in/tu-perfil/
+      name: LinkedIn
+  copyright: "© 2024 Tu Nombre"
