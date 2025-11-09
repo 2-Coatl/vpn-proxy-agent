@@ -31,7 +31,7 @@ This runbook explains how to evaluate and harden shell automation so that every 
 ## 5. Submit With Confidence
 
 1. **Update docs when behavior changes.** Add sections like this one to capture new expectations.
-2. **Keep the MkDocs configuration at the repository root (`mkdocs.yml`).** MkDocs loads configuration relative to the project root; moving it into `docs/` would break `mkdocs serve` and CI preview pipelines.
+2. **Keep the MkDocs configuration under `docs/mkdocs.yml`.** Use `mkdocs serve --config-file docs/mkdocs.yml` so local previews match CI pipelines.
 3. **Record follow-up work.** If true idempotence requires future orchestration changes, open an issue outlining the observed gap and proposed mitigation.
 
 By following this checklist, every script change preserves deterministic behavior, emits actionable logs, and passes the automated regression suite.

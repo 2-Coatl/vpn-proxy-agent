@@ -54,7 +54,7 @@ For a persistent fix, add the Python `Scripts` directory to your `PATH` (run `wi
 
 The project already contains a MkDocs site:
 
-- Configuration lives in `mkdocs.yml`.
+- Configuration lives in `docs/mkdocs.yml`.
 - Source content resides in the `docs/` directory (custom pages plus this tutorial).
 - Static builds output to `site/` (ignored by `.gitignore`).
 
@@ -65,23 +65,23 @@ cd my-project
 ```
 
 ### Live Preview
-From the repository root (where `mkdocs.yml` lives), start the dev server:
+From the repository root (with `docs/mkdocs.yml`), start the dev server:
 ```bash
-mkdocs serve
+mkdocs serve --config-file docs/mkdocs.yml
 ```
 Expected output:
 ```
 INFO    -  Building documentation...
 INFO    -  Cleaning site directory
 INFO    -  Documentation built in 0.22 seconds
-INFO    -  [15:50:43] Watching paths for changes: 'docs', 'mkdocs.yml'
+INFO    -  [15:50:43] Watching paths for changes: 'docs', 'docs/mkdocs.yml'
 INFO    -  [15:50:43] Serving on http://127.0.0.1:8000/
 ```
 Visit [http://127.0.0.1:8000/](http://127.0.0.1:8000/) to view the site. The server auto-reloads whenever you edit content or configuration.
 
 ### Editing Content
 - Update `docs/index.md` to change the landing page heading (try switching it to `MkLorum` while testing the tutorial).
-- Modify `mkdocs.yml` and set the site name:
+- Modify `docs/mkdocs.yml` and set the site name:
   ```yaml
   site_name: MkLorum
   ```
@@ -92,7 +92,7 @@ Add additional pages under `docs/` (for example, pull sample markdown):
 ```bash
 curl 'https://jaspervdj.be/lorem-markdownum/markdown.txt' > docs/about.md
 ```
-Declare navigation order in `mkdocs.yml`:
+Declare navigation order in `docs/mkdocs.yml`:
 ```yaml
 site_name: MkLorum
 nav:
@@ -102,7 +102,7 @@ nav:
 The default theme provides *Home*, *About*, and a search box without extra configuration.
 
 ### Theming
-Switch to the Read the Docs theme (already used in this repository) by adding:
+Switch to the Read the Docs theme (already used in this repository) by adding the following to `docs/mkdocs.yml`:
 ```yaml
 theme: readthedocs
 ```
@@ -115,7 +115,7 @@ Place `favicon.ico` inside `docs/img/`. MkDocs automatically detects the icon an
 
 Produce a production-ready static site:
 ```bash
-mkdocs build
+mkdocs build --config-file docs/mkdocs.yml
 ```
 Inspect the generated artifacts in the `site/` directory:
 ```
