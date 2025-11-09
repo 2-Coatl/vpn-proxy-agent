@@ -68,7 +68,7 @@ class TestPythonVersionHandling(unittest.TestCase):
         for version in invalid_versions:
             parts = version.split('.')
             # Should either not have 3 parts or have non-numeric parts
-            invalid = (len(parts) != 3 or not all(p.replace('x', '').isdigit() or p == 'x' for p in parts))
+            invalid = (len(parts) != 3 or not all(p.isdigit() for p in parts))
             self.assertTrue(invalid, f"{version} should be detected as invalid")
 
 

@@ -89,16 +89,25 @@ set -euo pipefail
 
 SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+
 source "${SCRIPT_DIR}/../utils/env.sh"
+source "${SCRIPT_DIR}/../utils/logging.sh"
+source "${SCRIPT_DIR}/../utils/common.sh"
 
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="$BACKUPS_DIR"
 LOG_FILE="${LOGS_DIR}/backup.log"
 
-echo "[$(date)] Starting backup..." >> "$LOG_FILE"
-tar -czf "$BACKUP_DIR/backup_${DATE}.tar.gz" "$SCRIPTS_DIR" "$PROJECT_ROOT" 2>/dev/null || true
-find "$BACKUP_DIR" -name "*.tar.gz" -mtime +7 -delete
-echo "[$(date)] Backup completed: backup_${DATE}.tar.gz" >> "$LOG_FILE"
+log_file "$LOG_FILE" "Starting daily backup"
+create_tarball "$BACKUP_DIR/backup_${DATE}.tar.gz" "Project backup" "$SCRIPTS_DIR" "$PROJECT_ROOT"
+
+mapfile -t old_backups < <(find "$BACKUP_DIR" -name "*.tar.gz" -mtime +7 -print)
+if [ ${#old_backups[@]} -gt 0 ]; then
+    rm -f "${old_backups[@]}"
+    log_file "$LOG_FILE" "Removed old backups"
+fi
+
+log_file "$LOG_FILE" "Backup completed: backup_${DATE}.tar.gz"
 EOFBACKUP
     chmod +x "${SCRIPTS_DIR}/backup_daily.sh"
     

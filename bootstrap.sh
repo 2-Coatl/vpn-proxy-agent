@@ -96,11 +96,13 @@ should_auto_confirm() {
 }
 
 # Validate provided install type
-is_valid_install_type() {
-    local candidate="$1"
+normalize_install_type() {
+    local raw_value="${1:-}"
+    local normalized="${raw_value,,}"
 
-    case "$candidate" in
+    case "$normalized" in
         "$INSTALL_QUICK"|"$INSTALL_STANDARD"|"$INSTALL_COMPLETE")
+            echo "$normalized"
             return 0
             ;;
     esac
@@ -108,13 +110,22 @@ is_valid_install_type() {
     return 1
 }
 
+is_valid_install_type() {
+    normalize_install_type "$1" > /dev/null
+}
+
 # Resolve the installation type respecting automation flags
 resolve_install_type() {
     local cli_choice="${1-}"
+    local normalized_cli
+    local normalized_env
 
     if [ -n "$cli_choice" ]; then
-        echo "$cli_choice"
-        return 0
+        if normalized_cli=$(normalize_install_type "$cli_choice"); then
+            echo "$normalized_cli"
+            return 0
+        fi
+        log_warn "Ignoring invalid CLI install type '$cli_choice'"
     fi
 
     local env_choice="${BOOTSTRAP_INSTALL_TYPE:-}"
@@ -123,12 +134,12 @@ resolve_install_type() {
         local candidate="$DEFAULT_AUTO_INSTALL"
 
         if [ -n "$env_choice" ]; then
-            candidate="$env_choice"
-        fi
-
-        if ! is_valid_install_type "$candidate"; then
-            log_warn "Invalid install type '$candidate' provided for automation. Falling back to '$DEFAULT_AUTO_INSTALL'."
-            candidate="$DEFAULT_AUTO_INSTALL"
+            if normalized_env=$(normalize_install_type "$env_choice"); then
+                candidate="$normalized_env"
+            else
+                log_warn "Invalid install type '$env_choice' provided for automation. Falling back to '$DEFAULT_AUTO_INSTALL'."
+                candidate="$DEFAULT_AUTO_INSTALL"
+            fi
         fi
 
         echo "$candidate"
@@ -136,8 +147,8 @@ resolve_install_type() {
     fi
 
     if [ -n "$env_choice" ]; then
-        if is_valid_install_type "$env_choice"; then
-            echo "$env_choice"
+        if normalized_env=$(normalize_install_type "$env_choice"); then
+            echo "$normalized_env"
             return 0
         fi
         log_warn "Ignoring invalid BOOTSTRAP_INSTALL_TYPE='$env_choice'"
