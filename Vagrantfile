@@ -143,21 +143,30 @@ Vagrant.configure("2") do |config|
     echo "  VPN/Proxy Agent Development Environment"
     echo "================================================"
     echo ""
-    echo "To install the agent, run:"
+    echo "Bootstrap runs automatically during provisioning."
+    echo "To rerun manually:"
     echo "  cd /vagrant"
-    echo "  ./bootstrap.sh"
+    echo "  BOOTSTRAP_AUTO=1 ./bootstrap.sh"
     echo ""
     echo "VM IP: 192.168.56.10"
     echo "SSH: vagrant ssh"
     echo ""
   SHELL
   
-  # Optional: Auto-run bootstrap in specific mode
-  # Uncomment to automatically run bootstrap on first provision
-  # config.vm.provision "shell", name: "auto-bootstrap", privileged: false, inline: <<-SHELL
-  #   cd /vagrant
-  #   ./bootstrap.sh --quick
-  # SHELL
+  # Automatically run bootstrap in automation mode during provisioning
+  config.vm.provision "shell", name: "auto-bootstrap", privileged: false, inline: <<-SHELL
+    set -e
+    cd /vagrant
+
+    if [ ! -f logs/bootstrap_auto_complete.flag ]; then
+      echo "[PROVISION] Running bootstrap in automation mode..."
+      BOOTSTRAP_AUTO=1 BOOTSTRAP_INSTALL_TYPE=standard ./bootstrap.sh
+      touch logs/bootstrap_auto_complete.flag
+      echo "[PROVISION] Bootstrap completed."
+    else
+      echo "[PROVISION] Bootstrap already completed. Skipping."
+    fi
+  SHELL
   
   # -----------------------------------------------------------------------------
   # Post-Up Message
@@ -174,10 +183,12 @@ Vagrant.configure("2") do |config|
   Project directory:
     /vagrant
   
-  Install the agent:
-    vagrant ssh
-    cd /vagrant
-    ./bootstrap.sh
+  Bootstrap status:
+    Provisioning runs ./bootstrap.sh automatically.
+    Check logs in /vagrant/logs/ or rerun with:
+      vagrant ssh
+      cd /vagrant
+      BOOTSTRAP_AUTO=1 ./bootstrap.sh
   
   Services available at:
     - SOCKS5 Proxy: localhost:1080
