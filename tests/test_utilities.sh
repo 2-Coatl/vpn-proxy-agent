@@ -89,7 +89,7 @@ assert_false() {
 test_logging() {
     echo ""
     echo "=== Testing Logging Functions ==="
-    
+
     # Test log_info (should not fail)
     assert_true "log_info 'Test message' >/dev/null 2>&1" "log_info function"
     
@@ -105,6 +105,28 @@ test_logging() {
     # Test timer functions
     assert_true "start_timer 'test'" "start_timer function"
     assert_true "end_timer 'test' 'Test operation' >/dev/null 2>&1" "end_timer function"
+}
+
+# Verify logging respects environment-provided directories
+test_logging_preserves_local_paths() {
+    echo ""
+    echo "=== Testing Logging Environment Preservation ==="
+
+    local output
+    output=$(
+        set -euo pipefail
+        cd "$LOCAL_PROJECT_ROOT"
+        whoami() { echo vagrant; }
+        source "utils/env.sh"
+        source "utils/logging.sh"
+        echo "LOGS_DIR=$LOGS_DIR"
+    )
+
+    local expected_logs_dir="${LOCAL_PROJECT_ROOT}/utils/logs"
+    local actual_logs_dir
+    actual_logs_dir=$(echo "$output" | awk -F'=' '/^LOGS_DIR=/ {print $2}')
+
+    assert_equals "$expected_logs_dir" "$actual_logs_dir" "logging preserves env-defined LOGS_DIR"
 }
 
 # -----------------------------------------------------------------------------
@@ -179,6 +201,24 @@ test_common() {
     # Test cleanup
     assert_true "cleanup_temp_dir '$temp_dir'" "cleanup_temp_dir function"
     assert_false "[ -d '$temp_dir' ]" "temp directory cleaned up"
+}
+
+# Ensure bootstrap selection works without predefined arguments
+test_select_install_type_interactive() {
+    echo ""
+    echo "=== Testing Bootstrap Installation Selection ==="
+
+    local output
+    output=$(printf '1\n' | bash -c '
+        set -euo pipefail
+        cd "'$LOCAL_PROJECT_ROOT'"
+        source "./bootstrap.sh"
+        select_install_type
+    ' | tail -n 1)
+
+    output="${output##*: }"
+
+    assert_equals "quick" "$output" "select_install_type handles interactive input"
 }
 
 # -----------------------------------------------------------------------------
@@ -505,8 +545,10 @@ main() {
     
     # Run test suites
     test_logging
+    test_logging_preserves_local_paths
     test_validation
     test_common
+    test_select_install_type_interactive
     test_environment_setup
     test_env_sourcing_alignment
     test_env_preserves_script_context

@@ -152,12 +152,20 @@ Vagrant.configure("2") do |config|
     echo ""
   SHELL
   
-  # Optional: Auto-run bootstrap in specific mode
-  # Uncomment to automatically run bootstrap on first provision
-  # config.vm.provision "shell", name: "auto-bootstrap", privileged: false, inline: <<-SHELL
-  #   cd /vagrant
-  #   ./bootstrap.sh --quick
-  # SHELL
+  # Automatically run bootstrap in automation mode during provisioning
+  config.vm.provision "shell", name: "auto-bootstrap", privileged: false, inline: <<-SHELL
+    set -e
+    cd /vagrant
+
+    if [ ! -f logs/bootstrap_auto_complete.flag ]; then
+      echo "[PROVISION] Running bootstrap in automation mode..."
+      BOOTSTRAP_AUTO=1 BOOTSTRAP_INSTALL_TYPE=standard ./bootstrap.sh
+      touch logs/bootstrap_auto_complete.flag
+      echo "[PROVISION] Bootstrap completed."
+    else
+      echo "[PROVISION] Bootstrap already completed. Skipping."
+    fi
+  SHELL
   
   # -----------------------------------------------------------------------------
   # Post-Up Message
