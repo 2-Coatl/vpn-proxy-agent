@@ -143,10 +143,16 @@ Vagrant.configure("2") do |config|
     echo "  VPN/Proxy Agent Development Environment"
     echo "================================================"
     echo ""
-    echo "Bootstrap runs automatically during provisioning."
+    echo "Bootstrap runs automatically during provisioning (non-interactive)."
     echo "To rerun manually:"
     echo "  cd /vagrant"
-    echo "  BOOTSTRAP_AUTO=1 ./bootstrap.sh"
+    echo "  BOOTSTRAP_AUTO=1 BOOTSTRAP_ASSUME_YES=1 ./bootstrap.sh"
+    echo ""
+    echo "Automatic provisioning guard: logs/bootstrap_auto_complete.flag"
+    echo "To rerun the automated bootstrap:"
+    echo "  rm -f logs/bootstrap_auto_complete.flag"
+    echo "  vagrant provision --provision-with auto-bootstrap"
+    echo "  # Remove logs/bootstrap_auto_complete.flag to force automation"
     echo ""
     echo "VM IP: 192.168.56.10"
     echo "SSH: vagrant ssh"
@@ -158,13 +164,17 @@ Vagrant.configure("2") do |config|
     set -e
     cd /vagrant
 
-    if [ ! -f logs/bootstrap_auto_complete.flag ]; then
-      echo "[PROVISION] Running bootstrap in automation mode..."
-      BOOTSTRAP_AUTO=1 BOOTSTRAP_INSTALL_TYPE=standard ./bootstrap.sh
-      touch logs/bootstrap_auto_complete.flag
-      echo "[PROVISION] Bootstrap completed."
+    FLAG_FILE="logs/bootstrap_auto_complete.flag"
+
+    if [ ! -f "$FLAG_FILE" ]; then
+      echo "[PROVISION] No bootstrap completion flag detected. Running automation..."
+      BOOTSTRAP_AUTO=1 BOOTSTRAP_ASSUME_YES=1 BOOTSTRAP_INSTALL_TYPE=standard ./bootstrap.sh
+      touch "$FLAG_FILE"
+      echo "[PROVISION] Bootstrap completed in automation mode."
+      echo "[PROVISION] To rerun automatically, Remove logs/bootstrap_auto_complete.flag and run 'vagrant provision --provision-with auto-bootstrap'."
     else
-      echo "[PROVISION] Bootstrap already completed. Skipping."
+      echo "[PROVISION] Bootstrap completion flag detected at $FLAG_FILE."
+      echo "[PROVISION] Skipping automatic bootstrap run. Remove logs/bootstrap_auto_complete.flag and reprovision to rerun automatically."
     fi
   SHELL
   
@@ -183,12 +193,16 @@ Vagrant.configure("2") do |config|
   Project directory:
     /vagrant
   
-  Bootstrap status:
-    Provisioning runs ./bootstrap.sh automatically.
-    Check logs in /vagrant/logs/ or rerun with:
-      vagrant ssh
-      cd /vagrant
-      BOOTSTRAP_AUTO=1 ./bootstrap.sh
+    Bootstrap status:
+      Provisioning runs ./bootstrap.sh automatically (non-interactive).
+      Automation guard: logs/bootstrap_auto_complete.flag
+      To force automation again:
+        rm -f logs/bootstrap_auto_complete.flag
+        vagrant provision --provision-with auto-bootstrap
+      Manual rerun:
+        vagrant ssh
+        cd /vagrant
+        BOOTSTRAP_AUTO=1 BOOTSTRAP_ASSUME_YES=1 ./bootstrap.sh
   
   Services available at:
     - SOCKS5 Proxy: localhost:1080
