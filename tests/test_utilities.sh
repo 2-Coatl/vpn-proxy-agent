@@ -6,15 +6,18 @@
 # Usage: ./tests/test_utilities.sh
 # =============================================================================
 
-set -e
+set -euo pipefail
 
 # Setup
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+LOCAL_PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-source "${PROJECT_ROOT}/utils/logging.sh"
+source "${LOCAL_PROJECT_ROOT}/utils/logging.sh"
+PROJECT_ROOT="$LOCAL_PROJECT_ROOT"
 source "${PROJECT_ROOT}/utils/validation.sh"
+PROJECT_ROOT="$LOCAL_PROJECT_ROOT"
 source "${PROJECT_ROOT}/utils/common.sh"
+PROJECT_ROOT="$LOCAL_PROJECT_ROOT"
 
 # Test counters
 TESTS_RUN=0
@@ -179,6 +182,279 @@ test_common() {
 }
 
 # -----------------------------------------------------------------------------
+# Environment Setup Tests
+# -----------------------------------------------------------------------------
+
+test_environment_setup() {
+    echo ""
+    echo "=== Testing Environment Setup ==="
+
+    local temp_root
+    temp_root="$(mktemp -d)"
+    local temp_utils_dir="${temp_root}/utils"
+    local temp_config_dir="${temp_root}/config"
+    mkdir -p "$temp_utils_dir" "$temp_config_dir"
+
+    cp "${PROJECT_ROOT}/utils/env.sh" "${temp_utils_dir}/env.sh"
+
+    local config_file="${temp_config_dir}/versions.conf"
+    cat >"$config_file" <<EOF
+PROJECT_ROOT="${temp_root}/project"
+SCRIPTS_DIR="${temp_root}/scripts"
+LOGS_DIR="${temp_root}/logs"
+BACKUPS_DIR="${temp_root}/backups"
+DATA_DIR="${temp_root}/data"
+EOF
+
+    local expected_config_message_path="${temp_utils_dir}/../config/versions.conf"
+
+    local env_output
+    env_output=$(
+        whoami() { echo ubuntu; }
+        source "${temp_utils_dir}/env.sh"
+        echo "PROJECT_ROOT=$PROJECT_ROOT"
+        echo "SCRIPTS_DIR=$SCRIPTS_DIR"
+        echo "LOGS_DIR=$LOGS_DIR"
+        echo "BACKUPS_DIR=$BACKUPS_DIR"
+        echo "DATA_DIR=$DATA_DIR"
+    )
+
+    local project_root
+    project_root=$(echo "$env_output" | awk -F'=' '/^PROJECT_ROOT=/ {print $2}')
+    local scripts_dir
+    scripts_dir=$(echo "$env_output" | awk -F'=' '/^SCRIPTS_DIR=/ {print $2}')
+    local logs_dir
+    logs_dir=$(echo "$env_output" | awk -F'=' '/^LOGS_DIR=/ {print $2}')
+    local backups_dir
+    backups_dir=$(echo "$env_output" | awk -F'=' '/^BACKUPS_DIR=/ {print $2}')
+    local data_dir
+    data_dir=$(echo "$env_output" | awk -F'=' '/^DATA_DIR=/ {print $2}')
+
+    assert_true "echo \"$env_output\" | grep -q 'Configuración cargada desde $expected_config_message_path'" "env.sh informs config load"
+    assert_equals "${temp_root}/project" "$project_root" "env.sh sets PROJECT_ROOT from config"
+    assert_equals "${temp_root}/scripts" "$scripts_dir" "env.sh sets SCRIPTS_DIR from config"
+    assert_equals "${temp_root}/logs" "$logs_dir" "env.sh sets LOGS_DIR from config"
+    assert_equals "${temp_root}/backups" "$backups_dir" "env.sh sets BACKUPS_DIR from config"
+    assert_equals "${temp_root}/data" "$data_dir" "env.sh sets DATA_DIR from config"
+
+    assert_true "[ -d '${temp_root}/logs' ]" "env.sh ensures LOGS_DIR exists"
+    assert_true "[ -d '${temp_root}/backups' ]" "env.sh ensures BACKUPS_DIR exists"
+    assert_true "[ -d '${temp_root}/data' ]" "env.sh ensures DATA_DIR exists"
+
+    rm -rf "$temp_root"
+}
+
+# -----------------------------------------------------------------------------
+# Script Sourcing Tests
+# -----------------------------------------------------------------------------
+
+test_env_sourcing_alignment() {
+    echo ""
+    echo "=== Testing Environment Sourcing Alignment ==="
+
+    local scripts_to_check=(
+        "bootstrap.sh"
+        "installer/install.sh"
+        "scripts/backup_daily.sh"
+        "scripts/backup_system.sh"
+        "scripts/dashboard.sh"
+        "scripts/diagnose_all.sh"
+        "scripts/feature_install.sh"
+        "scripts/master_setup.sh"
+        "scripts/restart_services.sh"
+        "scripts/safe_update.sh"
+        "scripts/setup_docker.sh"
+        "scripts/setup_ssh.sh"
+        "scripts/setup_tunnel.sh"
+        "scripts/setup_wireguard.sh"
+        "scripts/validate_build.sh"
+        "scripts/validate_wrapper.sh"
+        "scripts/watchdog_tunnel.sh"
+    )
+
+    declare -A requires_env=(
+        ["bootstrap.sh"]=1
+        ["scripts/backup_daily.sh"]=1
+        ["scripts/backup_system.sh"]=1
+        ["scripts/master_setup.sh"]=1
+        ["scripts/restart_services.sh"]=1
+        ["scripts/safe_update.sh"]=1
+        ["scripts/watchdog_tunnel.sh"]=1
+    )
+
+    for script_path in "${scripts_to_check[@]}"; do
+        local full_path="${PROJECT_ROOT}/${script_path}"
+        assert_true "[ -f '$full_path' ]" "${script_path} exists"
+
+        if [[ -n "${requires_env[$script_path]:-}" ]]; then
+            assert_true "grep -E 'source .*env\\.sh' '$full_path' >/dev/null" "${script_path} sources env.sh"
+        else
+            assert_false "grep -E 'source .*env\\.sh' '$full_path' >/dev/null" "${script_path} avoids unnecessary env.sh sourcing"
+        fi
+    done
+}
+
+test_env_preserves_script_context() {
+    echo ""
+    echo "=== Testing env.sh Preserves Caller Context ==="
+
+    local temp_root
+    temp_root="$(mktemp -d)"
+    local temp_utils_dir="${temp_root}/utils"
+    local temp_config_dir="${temp_root}/config"
+    mkdir -p "$temp_utils_dir" "$temp_config_dir"
+
+    cp "${PROJECT_ROOT}/utils/env.sh" "${temp_utils_dir}/env.sh"
+
+    cat >"${temp_config_dir}/versions.conf" <<EOF
+PROJECT_ROOT="${temp_root}/project"
+SCRIPTS_DIR="${temp_root}/scripts"
+LOGS_DIR="${temp_root}/logs"
+BACKUPS_DIR="${temp_root}/backups"
+DATA_DIR="${temp_root}/data"
+EOF
+
+    local result
+    result=$(
+        whoami() { echo ubuntu; }
+        SCRIPT_PATH="/tmp/caller_script.sh"
+        SCRIPT_DIR="/tmp/caller_dir"
+        source "${temp_utils_dir}/env.sh"
+        echo "SCRIPT_PATH=$SCRIPT_PATH"
+        echo "SCRIPT_DIR=$SCRIPT_DIR"
+    )
+
+    assert_equals "SCRIPT_PATH=/tmp/caller_script.sh" "$(echo "$result" | awk -F'=' '/^SCRIPT_PATH=/ {print $0}')" "env.sh preserves SCRIPT_PATH"
+    assert_equals "SCRIPT_DIR=/tmp/caller_dir" "$(echo "$result" | awk -F'=' '/^SCRIPT_DIR=/ {print $0}')" "env.sh preserves SCRIPT_DIR"
+
+    rm -rf "$temp_root"
+}
+
+# -----------------------------------------------------------------------------
+# Script Safety Tests
+# -----------------------------------------------------------------------------
+
+test_scripts_enforce_strict_mode() {
+    echo ""
+    echo "=== Testing Script Error Handling Strictness ==="
+
+    local scripts_to_validate=(
+        "bootstrap.sh"
+        "installer/install.sh"
+        "scripts/backup_daily.sh"
+        "scripts/backup_system.sh"
+        "scripts/build_cpython.sh"
+        "scripts/build_wrapper.sh"
+        "scripts/dashboard.sh"
+        "scripts/diagnose_all.sh"
+        "scripts/feature_install.sh"
+        "scripts/health_check.sh"
+        "scripts/master_setup.sh"
+        "scripts/restart_services.sh"
+        "scripts/safe_update.sh"
+        "scripts/setup_docker.sh"
+        "scripts/setup_ssh.sh"
+        "scripts/setup_tunnel.sh"
+        "scripts/setup_wireguard.sh"
+        "scripts/validate_build.sh"
+        "scripts/validate_wrapper.sh"
+        "scripts/watchdog_tunnel.sh"
+        "tests/test_utilities.sh"
+    )
+
+    for script in "${scripts_to_validate[@]}"; do
+        local script_path="${PROJECT_ROOT}/${script}"
+        assert_true "[ -f '$script_path' ]" "${script} exists"
+        assert_true "grep -E '^set -euo pipefail$' '$script_path' >/dev/null" "${script} enforces strict error handling"
+    done
+}
+
+# -----------------------------------------------------------------------------
+# Bootstrap Integration Tests
+# -----------------------------------------------------------------------------
+
+test_bootstrap_delegates_to_specialized_scripts() {
+    echo ""
+    echo "=== Testing Bootstrap Delegation to Specialized Scripts ==="
+
+    local bootstrap_path="${PROJECT_ROOT}/bootstrap.sh"
+
+    assert_true "[ -f '$bootstrap_path' ]" "bootstrap.sh exists"
+    assert_true \
+        "grep -E 'bash \"\\$\\{SCRIPTS_DIR\\}/setup_ssh\\.sh\"' '$bootstrap_path' >/dev/null" \
+        "bootstrap.sh delegates SSH setup to setup_ssh.sh"
+    assert_true \
+        "grep -E 'backup_daily\\.sh' '$bootstrap_path' >/dev/null" \
+        "bootstrap.sh references backup_daily.sh"
+    assert_true \
+        "grep -E '/etc/cron\.d/vpn_proxy_backups' '$bootstrap_path' >/dev/null" \
+        "bootstrap.sh provisions cron configuration for backups"
+    assert_true \
+        "grep -E 'bash \"\\$\\{SCRIPTS_DIR\\}/setup_wireguard\\.sh\"' '$bootstrap_path' >/dev/null" \
+        "bootstrap.sh delegates WireGuard setup to setup_wireguard.sh"
+}
+
+# -----------------------------------------------------------------------------
+# Build Automation Tests
+# -----------------------------------------------------------------------------
+
+test_makefile_targets() {
+    echo ""
+    echo "=== Testing Makefile Targets ==="
+
+    local makefile_path="${PROJECT_ROOT}/Makefile"
+
+    assert_true "[ -f '$makefile_path' ]" "Makefile exists"
+    assert_true "grep -E '^help:' '$makefile_path' >/dev/null" "help target defined"
+    assert_true "grep -E '^test:' '$makefile_path' >/dev/null" "test target defined"
+    assert_true "grep -E '^test-python:' '$makefile_path' >/dev/null" "test-python target defined"
+    assert_true "grep -E '^docs-serve:' '$makefile_path' >/dev/null" "docs-serve target defined"
+    assert_true "grep -E '^docs-build:' '$makefile_path' >/dev/null" "docs-build target defined"
+
+    assert_true "make -C '$PROJECT_ROOT' -n help >/dev/null" "make help succeeds"
+}
+
+# -----------------------------------------------------------------------------
+# Documentation Tests
+# -----------------------------------------------------------------------------
+
+test_docs_site_content() {
+    echo ""
+    echo "=== Testing Documentation Assets ==="
+
+    local docs_dir="${PROJECT_ROOT}/docs"
+    local mkdocs_config="${PROJECT_ROOT}/mkdocs.yml"
+    local index_page="${docs_dir}/index.md"
+    local about_page="${docs_dir}/about.md"
+    local tutorial_page="${docs_dir}/mkdocs_tutorial.md"
+    local img_placeholder="${docs_dir}/img/.gitkeep"
+    local pr_workflow_page="${docs_dir}/pr_workflow.md"
+
+    assert_true "[ -d '$docs_dir' ]" "docs directory exists"
+    assert_true "[ -f '$mkdocs_config' ]" "mkdocs.yml exists"
+    assert_true "[ -f '$index_page' ]" "index.md exists"
+    assert_true "[ -f '$about_page' ]" "about.md exists"
+    assert_true "[ -f '$tutorial_page' ]" "mkdocs_tutorial.md exists"
+    assert_true "[ -f '$pr_workflow_page' ]" "pr_workflow.md exists"
+    assert_true "[ -f '$img_placeholder' ]" "docs/img/.gitkeep exists"
+
+    assert_true "grep -E '^# VPN Proxy Agent Knowledge Base' '$index_page' >/dev/null" "index.md has site heading"
+    assert_true "grep -E '^## Quick Start' '$index_page' >/dev/null" "index.md documents quick start"
+    assert_true "grep -E '^# Repository Overview' '$about_page' >/dev/null" "about.md has overview heading"
+    assert_true "grep -E '^## Current Inventory' '$about_page' >/dev/null" "about.md lists inventory"
+    assert_true "grep -E '^# MkDocs Tutorial for VPN Proxy Agent' '$tutorial_page' >/dev/null" "tutorial page heading present"
+    assert_true "grep -E '^# PR Workflow Guidance' '$pr_workflow_page' >/dev/null" "pr_workflow.md has heading"
+    assert_true "grep -E 'Codex no permite actualizar' '$pr_workflow_page' >/dev/null" "pr_workflow.md explains Codex update limitation"
+
+    assert_true "grep -E '^site_name: ' '$mkdocs_config' >/dev/null" "mkdocs.yml defines site_name"
+    assert_true "grep -E 'Home: index\\.md' '$mkdocs_config' >/dev/null" "navigation includes Home"
+    assert_true "grep -E 'Repository Overview: about\\.md' '$mkdocs_config' >/dev/null" "navigation includes Repository Overview"
+    assert_true "grep -E 'MkDocs Tutorial: mkdocs_tutorial\\.md' '$mkdocs_config' >/dev/null" "navigation includes MkDocs Tutorial"
+    assert_true "grep -E 'PR Workflow Guidance: pr_workflow\\.md' '$mkdocs_config' >/dev/null" "navigation includes PR workflow guidance"
+    assert_true "grep -E 'name: readthedocs' '$mkdocs_config' >/dev/null" "readthedocs theme configured"
+}
+
+# -----------------------------------------------------------------------------
 # File Operation Tests
 # -----------------------------------------------------------------------------
 
@@ -231,6 +507,13 @@ main() {
     test_logging
     test_validation
     test_common
+    test_environment_setup
+    test_env_sourcing_alignment
+    test_env_preserves_script_context
+    test_scripts_enforce_strict_mode
+    test_bootstrap_delegates_to_specialized_scripts
+    test_docs_site_content
+    test_makefile_targets
     test_file_operations
     test_integration
     

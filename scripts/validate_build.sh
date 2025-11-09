@@ -1,7 +1,10 @@
 #!/bin/bash
 # Validate Python Build
-set -e
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+set -euo pipefail
+
+SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+
 source "${SCRIPT_DIR}/../utils/logging.sh"
 source "${SCRIPT_DIR}/../utils/validation.sh"
 

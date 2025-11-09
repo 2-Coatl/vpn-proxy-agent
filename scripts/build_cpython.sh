@@ -1,6 +1,6 @@
 #!/bin/bash
 # CPython Build Script
-set -e
+set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 source "${PROJECT_ROOT}/utils/logging.sh"

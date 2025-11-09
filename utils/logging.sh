@@ -5,23 +5,17 @@
 # Description: Centralized logging functions with consistent formatting
 # Usage: source utils/logging.sh
 # =============================================================================
-# -----------------------------------------------------------------------------
-# Determinar la ruta absoluta del directorio de este script
-# -----------------------------------------------------------------------------
-SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
-SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
 
-# -----------------------------------------------------------------------------
-# Cargar configuración si existe
-# -----------------------------------------------------------------------------
-CONFIG_FILE="${SCRIPT_DIR}/../config/versions.conf"
+LOGGING_UTILS_PATH="${BASH_SOURCE[0]:-$0}"
+LOGGING_UTILS_DIR="$(cd "$(dirname "$LOGGING_UTILS_PATH")" && pwd)"
+
+CONFIG_FILE="${LOGGING_UTILS_DIR}/../config/versions.conf"
 if [[ -f "$CONFIG_FILE" ]]; then
     source "$CONFIG_FILE"
     echo "Configuración de colores cargada desde $CONFIG_FILE"
 else
     echo "Advertencia: No se encontró configuración en $CONFIG_FILE. Usando colores por defecto."
 
-    # Colores por defecto
     COLOR_RESET="\033[0m"
     COLOR_RED="\033[0;31m"
     COLOR_GREEN="\033[0;32m"

@@ -6,17 +6,15 @@
 # Usage: ./scripts/diagnose_all.sh
 # =============================================================================
 
-# Source utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+set -euo pipefail
 
-source "${PROJECT_ROOT}/utils/logging.sh"
-source "${PROJECT_ROOT}/utils/validation.sh"
-source "${PROJECT_ROOT}/utils/common.sh"
+SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-# Load configuration
-CONFIG_FILE="${PROJECT_ROOT}/config/versions.conf"
-[ -f "$CONFIG_FILE" ] && source "$CONFIG_FILE"
+source "${REPO_ROOT}/utils/logging.sh"
+source "${REPO_ROOT}/utils/validation.sh"
+source "${REPO_ROOT}/utils/common.sh"
 
 # -----------------------------------------------------------------------------
 # Main Function

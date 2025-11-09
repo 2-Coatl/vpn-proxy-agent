@@ -1,11 +1,15 @@
 #!/bin/bash
 # Daily Backup Script
-set -e
-DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_DIR=~/backups
-LOG_FILE=~/logs/backup.log
+set -euo pipefail
 
-mkdir -p "$BACKUP_DIR" ~/logs
+SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+
+source "${SCRIPT_DIR}/../utils/env.sh"
+
+DATE=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="$BACKUPS_DIR"
+LOG_FILE="${LOGS_DIR}/backup.log"
 
 echo "[$(date)] Starting backup..." >> "$LOG_FILE"
 

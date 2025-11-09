@@ -6,55 +6,36 @@
 # Usage: ./bootstrap.sh [--quick|--standard|--complete]
 # =============================================================================
 
-set -e  # Exit on error
+set -euo pipefail
 
-# -----------------------------------------------------------------------------
-# Setup
-# -----------------------------------------------------------------------------
-#!/bin/bash
-
-# Determinar la ruta absoluta del directorio del script
-#!/bin/bash
-
-# -----------------------------------------------------------------------------
-# Determinar la ruta absoluta del directorio del script
-# -----------------------------------------------------------------------------
 SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
-echo "SCRIPT_DIR=$SCRIPT_DIR"
 
-# -----------------------------------------------------------------------------
-# Cargar utilidades si existen
-# -----------------------------------------------------------------------------
-UTILS_DIR="${SCRIPT_DIR}/utils"
+if [[ -f "${SCRIPT_DIR}/utils/env.sh" ]]; then
+    source "${SCRIPT_DIR}/utils/env.sh"
+else
+    echo "Error: No se encontró ${SCRIPT_DIR}/utils/env.sh" >&2
+    exit 1
+fi
+
+REPO_ROOT="$SCRIPT_DIR"
+UTILS_DIR="${REPO_ROOT}/utils"
 REQUIRED_UTILS=("logging.sh" "validation.sh" "common.sh")
 
 for file in "${REQUIRED_UTILS[@]}"; do
     FULL_PATH="${UTILS_DIR}/${file}"
     if [[ -f "$FULL_PATH" ]]; then
         source "$FULL_PATH"
-        echo "Cargado: $FULL_PATH"
     else
         echo "Advertencia: No se encontró $FULL_PATH"
     fi
 done
 
 # -----------------------------------------------------------------------------
-# Cargar configuración si existe
-# -----------------------------------------------------------------------------
-CONFIG_FILE="${SCRIPT_DIR}/config/versions.conf"
-if [[ -f "$CONFIG_FILE" ]]; then
-    source "$CONFIG_FILE"
-    echo "Configuración cargada desde $CONFIG_FILE"
-else
-    echo "Advertencia: No se encontró archivo de configuración en $CONFIG_FILE"
-fi
-
-# -----------------------------------------------------------------------------
 # Constantes
 # -----------------------------------------------------------------------------
 VERSION="1.0.0"
-LOG_FILE="${LOGS_DIR:-${SCRIPT_DIR}/logs}/bootstrap_$(date +%Y%m%d_%H%M%S).log"
+LOG_FILE="${LOGS_DIR}/bootstrap_$(date +%Y%m%d_%H%M%S).log"
 echo "Versión: $VERSION"
 echo "Archivo de log: $LOG_FILE"
 
@@ -293,8 +274,16 @@ install_ssh() {
     
     # Configure SSH
     log_step 2 "Configuring SSH"
-    # TODO: Call SSH configuration script
-    log_info "SSH configuration will be handled by dedicated script"
+    if [ ! -f "${SCRIPTS_DIR}/setup_ssh.sh" ]; then
+        log_error "Required script not found: ${SCRIPTS_DIR}/setup_ssh.sh"
+        return 1
+    fi
+
+    log_info "Executing SSH setup helper"
+    if ! bash "${SCRIPTS_DIR}/setup_ssh.sh"; then
+        log_error "SSH configuration script failed"
+        return 1
+    fi
     
     # Enable SSH service
     log_step 3 "Enabling SSH service"
@@ -389,9 +378,9 @@ install_security() {
 # Install monitoring
 install_monitoring() {
     log_header "Installing Monitoring Components"
-    
+
     start_timer "monitoring"
-    
+
     # Install basic monitoring tools
     log_step 1 "Installing monitoring tools"
     install_packages htop iotop nethogs ncdu || return 1
@@ -413,14 +402,68 @@ install_monitoring() {
     return 0
 }
 
+# Install WireGuard VPN
+install_wireguard() {
+    log_header "Installing WireGuard VPN"
+
+    start_timer "wireguard"
+
+    if [ ! -f "${SCRIPTS_DIR}/setup_wireguard.sh" ]; then
+        log_error "Required script not found: ${SCRIPTS_DIR}/setup_wireguard.sh"
+        return 1
+    fi
+
+    log_step 1 "Executing WireGuard setup script"
+    if ! bash "${SCRIPTS_DIR}/setup_wireguard.sh"; then
+        log_error "WireGuard setup script failed"
+        return 1
+    fi
+
+    end_timer "wireguard" "WireGuard installation"
+
+    log_success "WireGuard installed"
+    echo ""
+    return 0
+}
+
 # Setup backups
 setup_backups() {
     log_header "Setting Up Automated Backups"
     
     start_timer "backups"
     
-    # TODO: Copy backup scripts and configure cron
-    log_info "Backup configuration will be handled by dedicated script"
+    local cron_file="/etc/cron.d/vpn_proxy_backups"
+    local cron_user
+    cron_user=$(whoami)
+
+    log_step 1 "Validating backup scripts"
+    for script in "${SCRIPTS_DIR}/backup_daily.sh" "${SCRIPTS_DIR}/backup_system.sh"; do
+        if [ ! -f "$script" ]; then
+            log_error "Missing backup script: $script"
+            return 1
+        fi
+        chmod +x "$script" || {
+            log_error "Failed to mark $script as executable"
+            return 1
+        }
+    done
+
+    log_step 2 "Ensuring backup directories exist"
+    create_directory "$BACKUPS_DIR" 750 "$cron_user" || return 1
+    create_directory "$LOGS_DIR" 750 "$cron_user" || return 1
+
+    log_step 3 "Registering cron jobs"
+    sudo tee "$cron_file" >/dev/null <<EOCRON
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+0 2 * * * ${cron_user} cd "${PROJECT_ROOT}" && bash "${SCRIPTS_DIR}/backup_daily.sh" >> "${LOGS_DIR}/backup_cron.log" 2>&1
+30 2 * * 0 ${cron_user} cd "${PROJECT_ROOT}" && bash "${SCRIPTS_DIR}/backup_system.sh" >> "${LOGS_DIR}/backup_cron.log" 2>&1
+EOCRON
+
+    sudo chmod 644 "$cron_file" || log_warn "Failed to set permissions on $cron_file"
+
+    log_info "Backup cron configuration written to $cron_file"
     
     end_timer "backups" "Backup setup"
     
@@ -467,10 +510,8 @@ do_complete_install() {
     install_security || return 1
     install_monitoring || return 1
     setup_backups || return 1
-    
-    # TODO: Add WireGuard installation
-    log_info "WireGuard installation will be added in future version"
-    
+    install_wireguard || return 1
+
     return 0
 }
 

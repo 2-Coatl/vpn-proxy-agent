@@ -6,7 +6,15 @@
 # Usage: curl -sSL https://raw.githubusercontent.com/org/repo/main/installer/install.sh | bash
 # =============================================================================
 
-set -e
+set -euo pipefail
+
+SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+if [[ -f "${REPO_ROOT}/utils/logging.sh" ]]; then
+    source "${REPO_ROOT}/utils/logging.sh"
+fi
 
 # Configuration
 VERSION="1.0.0"

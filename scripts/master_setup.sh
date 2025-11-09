@@ -6,19 +6,18 @@
 # Usage: ./scripts/master_setup.sh
 # =============================================================================
 
-set -e
+set -euo pipefail
 
-# Source utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
 
-source "${PROJECT_ROOT}/utils/logging.sh"
-source "${PROJECT_ROOT}/utils/validation.sh"
-source "${PROJECT_ROOT}/utils/common.sh"
+source "${SCRIPT_DIR}/../utils/env.sh"
 
-# Load configuration
-CONFIG_FILE="${PROJECT_ROOT}/config/versions.conf"
-[ -f "$CONFIG_FILE" ] && source "$CONFIG_FILE"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+source "${REPO_ROOT}/utils/logging.sh"
+source "${REPO_ROOT}/utils/validation.sh"
+source "${REPO_ROOT}/utils/common.sh"
 
 # -----------------------------------------------------------------------------
 # Main Setup Function
@@ -78,24 +77,34 @@ main() {
     
     # Step 6: Create directory structure
     log_step 6 10 "Creating directory structure"
-    mkdir -p ~/projects ~/scripts ~/logs ~/backups
-    sudo mkdir -p /srv/data/{postgres,redis,uploads,backups}
-    sudo chown -R "$USER:$USER" /srv/data
+    mkdir -p "$PROJECT_ROOT" "$SCRIPTS_DIR" "$LOGS_DIR" "$BACKUPS_DIR"
+    sudo mkdir -p "${DATA_DIR}"/{postgres,redis,uploads,backups}
+    sudo chown -R "$USER:$USER" "$DATA_DIR"
     
     # Step 7: Configure backups
     log_step 7 10 "Configuring automated backups"
-    cat > ~/scripts/backup_daily.sh << 'EOFBACKUP'
+    cat > "${SCRIPTS_DIR}/backup_daily.sh" <<'EOFBACKUP'
 #!/bin/bash
+set -euo pipefail
+
+SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+source "${SCRIPT_DIR}/../utils/env.sh"
+
 DATE=$(date +%Y%m%d_%H%M%S)
-tar -czf ~/backups/backup_$DATE.tar.gz ~/projects ~/scripts 2>/dev/null
-find ~/backups -name "*.tar.gz" -mtime +7 -delete
-echo "[$(date)] Backup completed: backup_$DATE.tar.gz" >> ~/logs/backup.log
+BACKUP_DIR="$BACKUPS_DIR"
+LOG_FILE="${LOGS_DIR}/backup.log"
+
+echo "[$(date)] Starting backup..." >> "$LOG_FILE"
+tar -czf "$BACKUP_DIR/backup_${DATE}.tar.gz" "$SCRIPTS_DIR" "$PROJECT_ROOT" 2>/dev/null || true
+find "$BACKUP_DIR" -name "*.tar.gz" -mtime +7 -delete
+echo "[$(date)] Backup completed: backup_${DATE}.tar.gz" >> "$LOG_FILE"
 EOFBACKUP
-    chmod +x ~/scripts/backup_daily.sh
+    chmod +x "${SCRIPTS_DIR}/backup_daily.sh"
     
     # Step 8: Configure cron jobs
     log_step 8 10 "Configuring cron jobs"
-    (crontab -l 2>/dev/null | grep -v "backup_daily.sh"; echo "0 3 * * * ~/scripts/backup_daily.sh") | crontab -
+    (crontab -l 2>/dev/null | grep -v "backup_daily.sh"; echo "0 3 * * * ${SCRIPTS_DIR}/backup_daily.sh") | crontab -
     
     # Step 9: Install monitoring tools
     log_step 9 10 "Installing monitoring tools"
