@@ -14,7 +14,7 @@ Welcome to the engineering handbook for the VPN Proxy Agent. This site aggregate
    ```bash
    bash tests/test_utilities.sh
    ```
-4. **Provision the Vagrant VM (optional)** – `vagrant up` now runs `bootstrap.sh` automatically in automation mode. Inspect progress with `vagrant up --debug` or SSH in afterwards to rerun `BOOTSTRAP_AUTO=1 ./bootstrap.sh` if you need to reset the guest state.
+4. **Provision the Vagrant VM (optional)** – `vagrant up` now runs `bootstrap.sh` automatically in automation mode, mirroring the non-interactive install path used in CI. Inspect progress with `vagrant up --debug`, watch `/vagrant/logs/bootstrap_*.log` (mirrored in `/var/log/bootstrap.log`), or SSH in afterwards to rerun `BOOTSTRAP_AUTO=1 ./bootstrap.sh` when you need to reset state. Prefer `./bootstrap.sh` without the flag if you intentionally want the interactive prompts. See the [README Vagrant section](../README.md#option-3-vagrant-local-testing) for a command-by-command breakdown.
 5. **Preview the documentation** – install MkDocs (`pip install mkdocs`) and run `mkdocs serve` to review this site locally with live reloading.
 
 ## Project at a Glance

@@ -131,6 +131,9 @@ chmod +x bootstrap.sh
 #   - Quick (SSH Tunnel only - 45 min)
 #   - Standard (SSH + Docker + Security - 4 hours)
 #   - Complete (Everything including WireGuard - 9 hours)
+
+# Provisioning with Vagrant runs `bootstrap.sh` automatically in automation mode
+# (see docs/index.md#quick-start for additional context).
 ```
 
 > **Tip:** When provisioning with Vagrant, the bootstrap script now runs automatically during `vagrant up`. You can still SSH
@@ -193,15 +196,21 @@ vagrant up
 # SSH into VM
 vagrant ssh
 
-# Wait for provisioning to finish (bootstrap runs automatically)
-# Logs are written to /vagrant/logs/bootstrap_*.log
+# Wait for provisioning to finish (bootstrap runs automatically in automation mode)
+# Logs are written to /vagrant/logs/bootstrap_*.log and /var/log/bootstrap.log
 
 # (Optional) SSH into VM for inspection or manual reruns
 vagrant ssh
 cd /vagrant
-# Re-run bootstrap in automation mode if you need to reset
+# Re-run bootstrap in automation mode if you need to reset or test idempotency
 BOOTSTRAP_AUTO=1 ./bootstrap.sh
+
+# Re-run bootstrap interactively if you need to step through prompts manually
+./bootstrap.sh
 ```
+
+> 📘 **Need more detail?** See [Automated Vagrant provisioning](docs/index.md#quick-start) for a walkthrough of the automated flow
+> and manual rerun options.
 
 ---
 
