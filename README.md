@@ -139,6 +139,15 @@ chmod +x bootstrap.sh
 > **Tip:** When provisioning with Vagrant, the bootstrap script now runs automatically during `vagrant up`. You can still SSH
 > into the VM and rerun `BOOTSTRAP_AUTO=1 ./bootstrap.sh` if you need to reset the environment.
 
+### What happens after provisioning?
+
+Once the VM finishes bootstrapping you can connect with `vagrant ssh` and review the generated log in
+`~/logs/bootstrap_latest.log` to confirm all steps completed successfully. From there you can:
+
+- Run the smoke-test suite with `bash tests/test_bootstrap.sh` to validate the environment.
+- Adjust configuration files under `config/` and rerun `BOOTSTRAP_AUTO=1 ./bootstrap.sh` to apply the changes.
+- Follow the service-specific guides in `docs/` (for example, WireGuard or SOCKS5) to start using the stack.
+
 ---
 
 ## Installation
@@ -196,17 +205,14 @@ vagrant up
 # SSH into VM
 vagrant ssh
 
-# Wait for provisioning to finish (bootstrap runs automatically in automation mode)
-# Logs are written to /vagrant/logs/bootstrap_*.log and /var/log/bootstrap.log
+# Wait for provisioning to finish (bootstrap runs automatically)
+# Logs are written to /vagrant/logs/bootstrap_*.log
 
 # (Optional) SSH into VM for inspection or manual reruns
 vagrant ssh
 cd /vagrant
-# Re-run bootstrap in automation mode if you need to reset or test idempotency
+# Re-run bootstrap in automation mode if you need to reset
 BOOTSTRAP_AUTO=1 ./bootstrap.sh
-
-# Re-run bootstrap interactively if you need to step through prompts manually
-./bootstrap.sh
 ```
 
 > 📘 **Need more detail?** See [Automated Vagrant provisioning](docs/index.md#quick-start) for a walkthrough of the automated flow
