@@ -6,6 +6,7 @@ nav:
   - Material for MkDocs: material_for_mkdocs.md
   - PR Workflow Guidance: pr_workflow.md
   - Shell Script Quality Procedure: shell_script_quality.md
+  - Plan MCP sin Docker: mcp_server_plan.md
   - Architecture Decisions:
       - ADR 0003: adr/0003-mkdocs-local-automation.md
 docs_dir: docs
