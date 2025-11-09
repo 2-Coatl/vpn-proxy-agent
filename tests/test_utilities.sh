@@ -403,12 +403,14 @@ test_docs_site_content() {
     local about_page="${docs_dir}/about.md"
     local tutorial_page="${docs_dir}/mkdocs_tutorial.md"
     local img_placeholder="${docs_dir}/img/.gitkeep"
+    local pr_workflow_page="${docs_dir}/pr_workflow.md"
 
     assert_true "[ -d '$docs_dir' ]" "docs directory exists"
     assert_true "[ -f '$mkdocs_config' ]" "mkdocs.yml exists"
     assert_true "[ -f '$index_page' ]" "index.md exists"
     assert_true "[ -f '$about_page' ]" "about.md exists"
     assert_true "[ -f '$tutorial_page' ]" "mkdocs_tutorial.md exists"
+    assert_true "[ -f '$pr_workflow_page' ]" "pr_workflow.md exists"
     assert_true "[ -f '$img_placeholder' ]" "docs/img/.gitkeep exists"
 
     assert_true "grep -E '^# VPN Proxy Agent Knowledge Base' '$index_page' >/dev/null" "index.md has site heading"
@@ -416,11 +418,14 @@ test_docs_site_content() {
     assert_true "grep -E '^# Repository Overview' '$about_page' >/dev/null" "about.md has overview heading"
     assert_true "grep -E '^## Current Inventory' '$about_page' >/dev/null" "about.md lists inventory"
     assert_true "grep -E '^# MkDocs Tutorial for VPN Proxy Agent' '$tutorial_page' >/dev/null" "tutorial page heading present"
+    assert_true "grep -E '^# PR Workflow Guidance' '$pr_workflow_page' >/dev/null" "pr_workflow.md has heading"
+    assert_true "grep -E 'Codex no permite actualizar' '$pr_workflow_page' >/dev/null" "pr_workflow.md explains Codex update limitation"
 
     assert_true "grep -E '^site_name: ' '$mkdocs_config' >/dev/null" "mkdocs.yml defines site_name"
     assert_true "grep -E 'Home: index\\.md' '$mkdocs_config' >/dev/null" "navigation includes Home"
     assert_true "grep -E 'Repository Overview: about\\.md' '$mkdocs_config' >/dev/null" "navigation includes Repository Overview"
     assert_true "grep -E 'MkDocs Tutorial: mkdocs_tutorial\\.md' '$mkdocs_config' >/dev/null" "navigation includes MkDocs Tutorial"
+    assert_true "grep -E 'PR Workflow Guidance: pr_workflow\\.md' '$mkdocs_config' >/dev/null" "navigation includes PR workflow guidance"
     assert_true "grep -E 'name: readthedocs' '$mkdocs_config' >/dev/null" "readthedocs theme configured"
 }
 
