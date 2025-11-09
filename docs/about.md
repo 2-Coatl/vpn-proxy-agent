@@ -24,7 +24,7 @@ This page records the current footprint of the VPN Proxy Agent repository and hi
 | `installer/` | 3 | 367 | Dev Container feature definition, install wrapper, and supporting docs. |
 | `docs/` | 4 | 242 | MkDocs content, including repository overview and tutorial pages. |
 | `systemd/` | 2 | 28 | Unit files for the SSH tunnel and watchdog. |
-| `mkdocs.yml` | 1 | 8 | MkDocs site configuration with navigation and theme selection. |
+| `docs/mkdocs.yml` | 1 | 8 | MkDocs site configuration with navigation and theme selection. |
 
 ## Automation Workflows
 

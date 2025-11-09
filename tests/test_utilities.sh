@@ -506,7 +506,7 @@ test_docs_site_content() {
     echo "=== Testing Documentation Assets ==="
 
     local docs_dir="${PROJECT_ROOT}/docs"
-    local mkdocs_config="${PROJECT_ROOT}/mkdocs.yml"
+    local mkdocs_config="${PROJECT_ROOT}/docs/mkdocs.yml"
     local index_page="${docs_dir}/index.md"
     local about_page="${docs_dir}/about.md"
     local tutorial_page="${docs_dir}/mkdocs_tutorial.md"
