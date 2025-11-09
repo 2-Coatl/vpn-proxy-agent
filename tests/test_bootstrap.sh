@@ -111,18 +111,34 @@ test_vagrant_auto_bootstrap() {
     echo ""
     echo "=== Testing Vagrant auto bootstrap provisioning ==="
 
-    local pattern="BOOTSTRAP_AUTO=1"
-    if ! grep -q "$pattern" "$PROJECT_ROOT/Vagrantfile"; then
-        echo "[FAIL] Vagrant auto bootstrap provisioning"
-        echo "  Pattern not found: $pattern"
-        TESTS_RUN=$((TESTS_RUN + 1))
-        TESTS_FAILED=$((TESTS_FAILED + 1))
-        return
-    fi
+    local patterns=(
+        "BOOTSTRAP_AUTO=1"
+        "BOOTSTRAP_ASSUME_YES=1"
+        "logs/bootstrap_auto_complete.flag"
+        "vagrant provision --provision-with auto-bootstrap"
+        "Remove logs/bootstrap_auto_complete.flag"
+    )
+
+    local missing=()
+    for pattern in "${patterns[@]}"; do
+        if ! grep -q "$pattern" "$PROJECT_ROOT/Vagrantfile"; then
+            missing+=("$pattern")
+        fi
+    done
 
     TESTS_RUN=$((TESTS_RUN + 1))
-    TESTS_PASSED=$((TESTS_PASSED + 1))
-    echo "[PASS] Vagrant auto bootstrap provisioning"
+
+    if [ ${#missing[@]} -eq 0 ]; then
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+        echo "[PASS] Vagrant auto bootstrap provisioning"
+    else
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        echo "[FAIL] Vagrant auto bootstrap provisioning"
+        echo "  Missing patterns:"
+        for pattern in "${missing[@]}"; do
+            echo "    - $pattern"
+        done
+    fi
 }
 
 # Append new test to run sequence
