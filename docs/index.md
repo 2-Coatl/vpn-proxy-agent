@@ -14,7 +14,9 @@ Welcome to the engineering handbook for the VPN Proxy Agent. This site aggregate
    ```bash
    bash tests/test_utilities.sh
    ```
-4. **Preview the documentation** – install MkDocs (`pip install mkdocs`) and run `mkdocs serve` to review this site locally with live reloading.
+4. **Provision the Vagrant VM (optional)** – `vagrant up` now runs `bootstrap.sh` automatically in automation mode. Inspect progress with `vagrant up --debug` or SSH in afterwards to rerun `BOOTSTRAP_AUTO=1 ./bootstrap.sh` if you need to reset the guest state.
+5. **Review post-provisioning checks** – after Vagrant finishes, connect with `vagrant ssh`, read `~/logs/bootstrap_latest.log`, and run `bash tests/test_bootstrap.sh` to confirm the unattended helpers still pass.
+6. **Preview the documentation** – install MkDocs (`pip install mkdocs`) and run `mkdocs serve` to review this site locally with live reloading.
 
 ## Project at a Glance
 

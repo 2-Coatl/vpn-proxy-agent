@@ -44,6 +44,108 @@ INSTALL_QUICK="quick"
 INSTALL_STANDARD="standard"
 INSTALL_COMPLETE="complete"
 
+# Default selections for automation
+DEFAULT_AUTO_INSTALL="$INSTALL_STANDARD"
+
+# -----------------------------------------------------------------------------
+# Automation Helpers
+# -----------------------------------------------------------------------------
+
+# Determine if bootstrap should run without interactive prompts
+auto_mode_enabled() {
+    local flag
+
+    flag="${BOOTSTRAP_AUTO:-}"
+    if [[ -n "$flag" ]]; then
+        flag="${flag,,}"
+        if [[ "$flag" =~ ^(1|true|yes|y)$ ]]; then
+            return 0
+        fi
+    fi
+
+    flag="${CI:-}"
+    if [[ -n "$flag" ]]; then
+        flag="${flag,,}"
+        if [[ "$flag" =~ ^(1|true|yes|y)$ ]]; then
+            return 0
+        fi
+    fi
+
+    if [ ! -t 0 ]; then
+        return 0
+    fi
+
+    return 1
+}
+
+# Check whether we should auto-confirm prompts
+should_auto_confirm() {
+    if auto_mode_enabled; then
+        return 0
+    fi
+
+    local flag="${BOOTSTRAP_ASSUME_YES:-}"
+    if [[ -n "$flag" ]]; then
+        flag="${flag,,}"
+        if [[ "$flag" =~ ^(1|true|yes|y)$ ]]; then
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+# Validate provided install type
+is_valid_install_type() {
+    local candidate="$1"
+
+    case "$candidate" in
+        "$INSTALL_QUICK"|"$INSTALL_STANDARD"|"$INSTALL_COMPLETE")
+            return 0
+            ;;
+    esac
+
+    return 1
+}
+
+# Resolve the installation type respecting automation flags
+resolve_install_type() {
+    local cli_choice="${1-}"
+
+    if [ -n "$cli_choice" ]; then
+        echo "$cli_choice"
+        return 0
+    fi
+
+    local env_choice="${BOOTSTRAP_INSTALL_TYPE:-}"
+
+    if auto_mode_enabled; then
+        local candidate="$DEFAULT_AUTO_INSTALL"
+
+        if [ -n "$env_choice" ]; then
+            candidate="$env_choice"
+        fi
+
+        if ! is_valid_install_type "$candidate"; then
+            log_warn "Invalid install type '$candidate' provided for automation. Falling back to '$DEFAULT_AUTO_INSTALL'."
+            candidate="$DEFAULT_AUTO_INSTALL"
+        fi
+
+        echo "$candidate"
+        return 0
+    fi
+
+    if [ -n "$env_choice" ]; then
+        if is_valid_install_type "$env_choice"; then
+            echo "$env_choice"
+            return 0
+        fi
+        log_warn "Ignoring invalid BOOTSTRAP_INSTALL_TYPE='$env_choice'"
+    fi
+
+    select_install_type
+}
+
 # -----------------------------------------------------------------------------
 # Functions
 # -----------------------------------------------------------------------------
@@ -164,7 +266,7 @@ check_requirements() {
 
 # Select installation type
 select_install_type() {
-    local install_type="$1"
+    local install_type="${1-}"
     
     if [ -n "$install_type" ]; then
         echo "$install_type"
@@ -598,22 +700,27 @@ main() {
     # Detect OS
     detect_os_version
     
-    # Select installation type
-    if [ -z "$install_type" ]; then
-        install_type=$(select_install_type) || {
-            log_error "Installation cancelled"
-            exit 1
-        }
+    install_type=$(resolve_install_type "$install_type") || {
+        log_error "Installation cancelled"
+        exit 1
+    }
+
+    if auto_mode_enabled; then
+        log_info "Automation mode detected. Selected installation type: $install_type"
     fi
-    
+
     # Show summary
     show_install_summary "$install_type"
-    
+
     # Confirm installation
     echo ""
-    if ! log_confirm "Proceed with installation?" "y"; then
-        log_info "Installation cancelled by user"
-        exit 0
+    if should_auto_confirm; then
+        log_info "Auto-confirmation enabled. Proceeding without prompt."
+    else
+        if ! log_confirm "Proceed with installation?" "y"; then
+            log_info "Installation cancelled by user"
+            exit 0
+        fi
     fi
     echo ""
     
@@ -637,5 +744,7 @@ main() {
     exit 0
 }
 
-# Run main
-main "$@"
+# Run main when executed directly
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    main "$@"
+fi
