@@ -434,6 +434,49 @@ test_bootstrap_delegates_to_specialized_scripts() {
         "bootstrap.sh delegates WireGuard setup to setup_wireguard.sh"
 }
 
+test_bootstrap_automation_flow() {
+    echo ""
+    echo "=== Testing Bootstrap Automation Flow ==="
+
+    local output
+    output=$(cd "$LOCAL_PROJECT_ROOT" && BOOTSTRAP_AUTO=1 BOOTSTRAP_INSTALL_TYPE="COMPLETE" BOOTSTRAP_ASSUME_YES=1 bash -c '
+        set -euo pipefail
+
+        source "./bootstrap.sh"
+
+        start_timer() { echo "START_TIMER:$1"; }
+        end_timer() { echo "END_TIMER:$1"; echo "3s"; }
+        show_welcome() { echo "WELCOME"; }
+        check_requirements() { echo "CHECK_REQ"; return 0; }
+        detect_os_version() { OS_PRETTY_NAME="Ubuntu Test"; return 0; }
+        show_install_summary() { echo "SUMMARY:$1"; }
+        do_quick_install() { echo "DO_QUICK"; return 0; }
+        do_standard_install() { echo "DO_STANDARD"; return 0; }
+        do_complete_install() { echo "DO_COMPLETE"; return 0; }
+        show_completion() { echo "COMPLETE:$1:$2"; }
+        log_info() { echo "INFO:$*"; }
+        log_warn() { echo "WARN:$*"; }
+        log_error() { echo "ERROR:$*"; }
+        log_success() { echo "SUCCESS:$*"; }
+        log_box() { echo "BOX:$*"; }
+        log_header() { echo "HEADER:$*"; }
+        log_step() { echo "STEP:$*"; }
+        log_summary_start() { echo "SUMMARY_START"; }
+        log_summary_item() { echo "SUMMARY_ITEM:$1=$2"; }
+        log_summary_end() { echo "SUMMARY_END"; }
+        log_confirm() { echo "CONFIRM:$1"; return 0; }
+
+        LOG_FILE="$(mktemp)"
+
+        main
+    ' 2>&1)
+
+    assert_true "echo \"$output\" | grep -q 'INFO:Automation mode detected'" "bootstrap main reports automation mode"
+    assert_true "echo \"$output\" | grep -q 'DO_COMPLETE'" "bootstrap selects complete install under automation"
+    assert_true "echo \"$output\" | grep -q 'INFO:Auto-confirmation enabled'" "bootstrap skips confirmation under automation"
+    assert_false "echo \"$output\" | grep -q 'CONFIRM:'" "bootstrap does not prompt when auto confirm active"
+}
+
 # -----------------------------------------------------------------------------
 # Build Automation Tests
 # -----------------------------------------------------------------------------
@@ -554,6 +597,7 @@ main() {
     test_env_preserves_script_context
     test_scripts_enforce_strict_mode
     test_bootstrap_delegates_to_specialized_scripts
+    test_bootstrap_automation_flow
     test_docs_site_content
     test_makefile_targets
     test_file_operations
