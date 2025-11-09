@@ -274,8 +274,16 @@ install_ssh() {
     
     # Configure SSH
     log_step 2 "Configuring SSH"
-    # TODO: Call SSH configuration script
-    log_info "SSH configuration will be handled by dedicated script"
+    if [ ! -f "${SCRIPTS_DIR}/setup_ssh.sh" ]; then
+        log_error "Required script not found: ${SCRIPTS_DIR}/setup_ssh.sh"
+        return 1
+    fi
+
+    log_info "Executing SSH setup helper"
+    if ! bash "${SCRIPTS_DIR}/setup_ssh.sh"; then
+        log_error "SSH configuration script failed"
+        return 1
+    fi
     
     # Enable SSH service
     log_step 3 "Enabling SSH service"
@@ -370,9 +378,9 @@ install_security() {
 # Install monitoring
 install_monitoring() {
     log_header "Installing Monitoring Components"
-    
+
     start_timer "monitoring"
-    
+
     # Install basic monitoring tools
     log_step 1 "Installing monitoring tools"
     install_packages htop iotop nethogs ncdu || return 1
@@ -394,14 +402,68 @@ install_monitoring() {
     return 0
 }
 
+# Install WireGuard VPN
+install_wireguard() {
+    log_header "Installing WireGuard VPN"
+
+    start_timer "wireguard"
+
+    if [ ! -f "${SCRIPTS_DIR}/setup_wireguard.sh" ]; then
+        log_error "Required script not found: ${SCRIPTS_DIR}/setup_wireguard.sh"
+        return 1
+    fi
+
+    log_step 1 "Executing WireGuard setup script"
+    if ! bash "${SCRIPTS_DIR}/setup_wireguard.sh"; then
+        log_error "WireGuard setup script failed"
+        return 1
+    fi
+
+    end_timer "wireguard" "WireGuard installation"
+
+    log_success "WireGuard installed"
+    echo ""
+    return 0
+}
+
 # Setup backups
 setup_backups() {
     log_header "Setting Up Automated Backups"
     
     start_timer "backups"
     
-    # TODO: Copy backup scripts and configure cron
-    log_info "Backup configuration will be handled by dedicated script"
+    local cron_file="/etc/cron.d/vpn_proxy_backups"
+    local cron_user
+    cron_user=$(whoami)
+
+    log_step 1 "Validating backup scripts"
+    for script in "${SCRIPTS_DIR}/backup_daily.sh" "${SCRIPTS_DIR}/backup_system.sh"; do
+        if [ ! -f "$script" ]; then
+            log_error "Missing backup script: $script"
+            return 1
+        fi
+        chmod +x "$script" || {
+            log_error "Failed to mark $script as executable"
+            return 1
+        }
+    done
+
+    log_step 2 "Ensuring backup directories exist"
+    create_directory "$BACKUPS_DIR" 750 "$cron_user" || return 1
+    create_directory "$LOGS_DIR" 750 "$cron_user" || return 1
+
+    log_step 3 "Registering cron jobs"
+    sudo tee "$cron_file" >/dev/null <<EOCRON
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+0 2 * * * ${cron_user} cd "${PROJECT_ROOT}" && bash "${SCRIPTS_DIR}/backup_daily.sh" >> "${LOGS_DIR}/backup_cron.log" 2>&1
+30 2 * * 0 ${cron_user} cd "${PROJECT_ROOT}" && bash "${SCRIPTS_DIR}/backup_system.sh" >> "${LOGS_DIR}/backup_cron.log" 2>&1
+EOCRON
+
+    sudo chmod 644 "$cron_file" || log_warn "Failed to set permissions on $cron_file"
+
+    log_info "Backup cron configuration written to $cron_file"
     
     end_timer "backups" "Backup setup"
     
@@ -448,10 +510,8 @@ do_complete_install() {
     install_security || return 1
     install_monitoring || return 1
     setup_backups || return 1
-    
-    # TODO: Add WireGuard installation
-    log_info "WireGuard installation will be added in future version"
-    
+    install_wireguard || return 1
+
     return 0
 }
 

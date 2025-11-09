@@ -370,6 +370,31 @@ test_scripts_enforce_strict_mode() {
 }
 
 # -----------------------------------------------------------------------------
+# Bootstrap Integration Tests
+# -----------------------------------------------------------------------------
+
+test_bootstrap_delegates_to_specialized_scripts() {
+    echo ""
+    echo "=== Testing Bootstrap Delegation to Specialized Scripts ==="
+
+    local bootstrap_path="${PROJECT_ROOT}/bootstrap.sh"
+
+    assert_true "[ -f '$bootstrap_path' ]" "bootstrap.sh exists"
+    assert_true \
+        "grep -E 'bash \"\\$\\{SCRIPTS_DIR\\}/setup_ssh\\.sh\"' '$bootstrap_path' >/dev/null" \
+        "bootstrap.sh delegates SSH setup to setup_ssh.sh"
+    assert_true \
+        "grep -E 'backup_daily\\.sh' '$bootstrap_path' >/dev/null" \
+        "bootstrap.sh references backup_daily.sh"
+    assert_true \
+        "grep -E '/etc/cron\.d/vpn_proxy_backups' '$bootstrap_path' >/dev/null" \
+        "bootstrap.sh provisions cron configuration for backups"
+    assert_true \
+        "grep -E 'bash \"\\$\\{SCRIPTS_DIR\\}/setup_wireguard\\.sh\"' '$bootstrap_path' >/dev/null" \
+        "bootstrap.sh delegates WireGuard setup to setup_wireguard.sh"
+}
+
+# -----------------------------------------------------------------------------
 # Build Automation Tests
 # -----------------------------------------------------------------------------
 
@@ -486,6 +511,7 @@ main() {
     test_env_sourcing_alignment
     test_env_preserves_script_context
     test_scripts_enforce_strict_mode
+    test_bootstrap_delegates_to_specialized_scripts
     test_docs_site_content
     test_makefile_targets
     test_file_operations
