@@ -22,9 +22,9 @@ This page records the current footprint of the VPN Proxy Agent repository and hi
 | `utils/` | 4 | 1,325 | Core Bash libraries: `env.sh`, `common.sh`, `logging.sh`, `validation.sh`. |
 | `tests/` | 4 | 913 | Bash regression coverage and Python verifiers for syntax, build, and feature logic. |
 | `installer/` | 3 | 367 | Dev Container feature definition, install wrapper, and supporting docs. |
-| `docs/` | 4 | 242 | MkDocs content, including repository overview and tutorial pages. |
+| `docs/` | 8 | 364 | MkDocs content, including repository overview, tutorials, and checklists. |
 | `systemd/` | 2 | 28 | Unit files for the SSH tunnel and watchdog. |
-| `mkdocs.yml` | 1 | 8 | MkDocs site configuration with navigation and theme selection. |
+| `docs/mkdocs.yml` | 1 | 11 | MkDocs site configuration with navigation and theme selection. |
 
 ## Automation Workflows
 

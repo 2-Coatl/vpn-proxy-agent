@@ -2,8 +2,10 @@ site_name: VPN Proxy Agent Docs
 nav:
   - Home: index.md
   - Repository Overview: about.md
+  - Documentation Tasks: documentation_tasks.md
   - MkDocs Tutorial: mkdocs_tutorial.md
   - PR Workflow Guidance: pr_workflow.md
-docs_dir: docs
+  - Shell Script Quality Procedure: shell_script_quality.md
+docs_dir: .
 theme:
   name: readthedocs

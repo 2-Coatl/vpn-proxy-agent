@@ -16,7 +16,7 @@ Welcome to the engineering handbook for the VPN Proxy Agent. This site aggregate
    ```
 4. **Provision the Vagrant VM (optional)** – `vagrant up` now runs `bootstrap.sh` automatically in automation mode. Inspect progress with `vagrant up --debug` or SSH in afterwards to rerun `BOOTSTRAP_AUTO=1 ./bootstrap.sh` if you need to reset the guest state.
 5. **Review post-provisioning checks** – after Vagrant finishes, connect with `vagrant ssh`, read `~/logs/bootstrap_latest.log`, and run `bash tests/test_bootstrap.sh` to confirm the unattended helpers still pass.
-6. **Preview the documentation** – install MkDocs (`pip install mkdocs`) and run `mkdocs serve` to review this site locally with live reloading.
+6. **Preview the documentation** – install MkDocs (`pip install mkdocs`) and run `mkdocs serve -f docs/mkdocs.yml` to review this site locally with live reloading.
 
 ## Project at a Glance
 
@@ -39,12 +39,12 @@ Tracking these items before declaring the project production-ready will prevent 
 
 ## Documentation Workflow
 
-MkDocs powers this knowledge base. Edit pages under `docs/`, adjust navigation or themes in `mkdocs.yml`, and rely on the live server for feedback:
+MkDocs powers this knowledge base. Edit pages under `docs/`, adjust navigation or themes in `docs/mkdocs.yml`, and rely on the live server for feedback:
 
 ```bash
 pip install mkdocs
-mkdocs serve   # live preview at http://127.0.0.1:8000/
-mkdocs build   # render static assets into the site/ directory
+mkdocs serve -f docs/mkdocs.yml   # live preview at http://127.0.0.1:8000/
+mkdocs build -f docs/mkdocs.yml   # render static assets into the site/ directory
 ```
 
 Need a refresher on MkDocs itself? See [MkDocs Tutorial](mkdocs_tutorial.md) for a step-by-step walkthrough tailored to this repository.

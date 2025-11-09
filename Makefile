@@ -42,10 +42,10 @@ test-python:
 # Documentation --------------------------------------------------------------
 
 docs-serve:
-	$(MKDOCS) serve
+	$(MKDOCS) serve -f docs/mkdocs.yml
 
 docs-build:
-	$(MKDOCS) build
+	$(MKDOCS) build -f docs/mkdocs.yml
 
 docs-deps:
 	$(PIP) install mkdocs

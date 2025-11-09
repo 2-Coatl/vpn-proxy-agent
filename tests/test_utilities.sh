@@ -506,7 +506,7 @@ test_docs_site_content() {
     echo "=== Testing Documentation Assets ==="
 
     local docs_dir="${PROJECT_ROOT}/docs"
-    local mkdocs_config="${PROJECT_ROOT}/mkdocs.yml"
+    local mkdocs_config="${docs_dir}/mkdocs.yml"
     local index_page="${docs_dir}/index.md"
     local about_page="${docs_dir}/about.md"
     local tutorial_page="${docs_dir}/mkdocs_tutorial.md"
@@ -534,6 +534,7 @@ test_docs_site_content() {
     assert_true "grep -E 'Repository Overview: about\\.md' '$mkdocs_config' >/dev/null" "navigation includes Repository Overview"
     assert_true "grep -E 'MkDocs Tutorial: mkdocs_tutorial\\.md' '$mkdocs_config' >/dev/null" "navigation includes MkDocs Tutorial"
     assert_true "grep -E 'PR Workflow Guidance: pr_workflow\\.md' '$mkdocs_config' >/dev/null" "navigation includes PR workflow guidance"
+    assert_true "grep -E 'Documentation Tasks: documentation_tasks\\.md' '$mkdocs_config' >/dev/null" "navigation includes documentation tasks checklist"
     assert_true "grep -E 'name: readthedocs' '$mkdocs_config' >/dev/null" "readthedocs theme configured"
 }
 
