@@ -31,6 +31,13 @@ for file in "${REQUIRED_UTILS[@]}"; do
     fi
 done
 
+CONFIG_FILE="${REPO_ROOT}/config/versions.conf"
+if [[ -f "$CONFIG_FILE" ]]; then
+    source "$CONFIG_FILE"
+else
+    log_warn "No se encontró $CONFIG_FILE. Algunas opciones pueden fallar."
+fi
+
 # -----------------------------------------------------------------------------
 # Constantes
 # -----------------------------------------------------------------------------
@@ -173,6 +180,7 @@ OPTIONS:
     --quick         Quick install (SSH Tunnel only - 45 min)
     --standard      Standard install (SSH + Docker + Security - 4 hours)
     --complete      Complete install (Everything + WireGuard - 9 hours)
+    --mcp           Run only the MCP server provisioning workflow
     --help          Show this help message
 
 INSTALLATION TYPES:
@@ -659,18 +667,61 @@ show_completion() {
     echo ""
 }
 
+run_mcp_workflow() {
+    log_header "MCP Server Bootstrap"
+
+    local installer="${REPO_ROOT}/scripts/install_mcp.sh"
+    if [ ! -x "$installer" ]; then
+        log_error "El instalador MCP no existe o no es ejecutable: $installer"
+        return 1
+    fi
+
+    log_section "Pre-flight checks"
+    log_step 1 "Validando puerto MCP ${MCP_DEFAULT_PORT}"
+    if ! validate_port "$MCP_DEFAULT_PORT"; then
+        log_error "Puerto MCP inválido: $MCP_DEFAULT_PORT"
+        return 1
+    fi
+
+    log_section "Instalación del servicio"
+    log_step 2 "Ejecutando install_mcp.sh"
+    if ! bash "$installer"; then
+        log_error "Falló la ejecución de install_mcp.sh"
+        return 1
+    fi
+
+    log_section "Validaciones posteriores"
+    log_step 3 "Invocando watchdog"
+    local watchdog="${REPO_ROOT}/scripts/watchdog_mcp.sh"
+    if [ -x "$watchdog" ]; then
+        if ! bash "$watchdog"; then
+            log_warn "Watchdog MCP reportó incidencias. Revise los logs para más detalles."
+        fi
+    else
+        log_warn "No se encontró watchdog MCP ejecutable en $watchdog"
+    fi
+
+    log_info "Active el servicio con: sudo systemctl start mcp.service"
+    log_info "Verifique el estado con: sudo systemctl status mcp.service"
+    log_success "MCP server desplegado mediante bootstrap"
+}
+
 # -----------------------------------------------------------------------------
 # Main
 # -----------------------------------------------------------------------------
 
 main() {
     local install_type=""
-    
+    local mcp_only=0
+
     # Parse arguments
     case "${1:-}" in
         --help|-h)
             show_usage
             exit 0
+            ;;
+        --mcp)
+            mcp_only=1
             ;;
         --quick)
             install_type="$INSTALL_QUICK"
@@ -695,6 +746,11 @@ main() {
     mkdir -p "$(dirname "$LOG_FILE")"
     exec > >(tee -a "$LOG_FILE")
     exec 2>&1
+
+    if (( mcp_only )); then
+        run_mcp_workflow
+        return $?
+    fi
     
     # Start timer
     start_timer "total"

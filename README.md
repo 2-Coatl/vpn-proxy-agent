@@ -14,6 +14,7 @@
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Usage](#usage)
+- [MCP Server Deployment](#mcp-server-deployment)
 - [Scripts Reference](#scripts-reference)
 - [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
@@ -86,6 +87,10 @@ vpn-proxy-agent/
 ├── logs/                   # Log files directory
 │   └── .gitkeep
 ├── scripts/                # Core automation scripts
+│   ├── install_mcp.sh      # Provision MCP server runtime
+│   ├── run_mcp.sh          # Wrapper to start the MCP binary
+│   ├── watchdog_mcp.sh     # Health checks for MCP service
+│   ├── run_tests.sh        # Local regression runner with coverage
 │   ├── build_cpython.sh
 │   ├── build_wrapper.sh
 │   ├── feature_install.sh
@@ -314,7 +319,66 @@ tail -f logs/monitor.log
 
 ---
 
+## MCP Server Deployment
+
+The repository ahora incluye un flujo completo para instalar y operar un servidor MCP sin depender de contenedores.
+
+### 1. Definir parámetros
+- Ajusta los valores bajo `config/versions.conf` en la sección **MCP Service Configuration**.
+- Verifica puertos y rutas con `utils/validation.sh` si personalizas el despliegue.
+
+### 2. Instalación standalone
+
+```bash
+# Ejecutar el instalador directamente
+./scripts/install_mcp.sh
+
+# Revisar los logs del servicio
+tail -f /var/log/mcp/mcp-server.log
+```
+
+### 3. Bootstrap dedicado
+
+```bash
+# Orquestar únicamente el servidor MCP
+./bootstrap.sh --mcp
+```
+
+La ruta `--mcp` ejecuta `install_mcp.sh`, valida el servicio con `watchdog_mcp.sh` y deja listo el unit file `systemd/mcp.service`.
+
+### 4. Operación diaria
+- Inicia el proceso con `/usr/local/bin/run_mcp.sh` (empaquetado por el instalador).
+- Supervisa la disponibilidad con `./scripts/watchdog_mcp.sh` o `sudo systemctl status mcp.service`.
+- Personaliza variables sensibles en `/etc/mcp/mcp.env`.
+
+#### Ejemplo de inventario Ansible
+
+```ini
+[mcp_servers]
+mcp-prod ansible_host=10.0.0.5 ansible_user=ubuntu mcp_port=2288
+
+[mcp_servers:vars]
+mcp_bin=/usr/local/bin/mcp-server
+mcp_env=/etc/mcp/mcp.env
+```
+
+---
+
 ## Scripts Reference
+
+### MCP Service Scripts
+
+#### scripts/install_mcp.sh
+Idempotent installer that crea el usuario del servicio, directorios `/var/lib/mcp` y `/var/log/mcp`, despliega un binario placeholder y registra la unidad `systemd/mcp.service`.
+
+#### scripts/run_mcp.sh
+Wrapper que carga `/etc/mcp/mcp.env`, redirige logs a `logs/mcp-server.log` y ejecuta el binario configurado con validaciones previas.
+
+#### scripts/watchdog_mcp.sh
+Watchdog que valida conectividad TCP (`nc`), proceso (`pgrep`) y endpoint HTTP (`curl`) para detectar incidentes.
+
+#### scripts/run_tests.sh
+Ejecutor combinado que corre `pytest` con `coverage` (fail-under 80%) y la suite bash `tests/test_utilities.sh`, dejando reportes XML/HTML en `artifacts/coverage/`.
 
 ### Utility Libraries
 
@@ -385,6 +449,13 @@ Install and configure Docker
 ---
 
 ## Testing
+
+### Unified regression runner
+
+```bash
+# Ejecuta pytest con cobertura (80%) y la suite bash
+./scripts/run_tests.sh
+```
 
 ### Unit Tests
 

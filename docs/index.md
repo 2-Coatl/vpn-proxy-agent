@@ -18,6 +18,15 @@ Welcome to the engineering handbook for the VPN Proxy Agent. This site aggregate
 5. **Review post-provisioning checks** – after Vagrant finishes, connect with `vagrant ssh`, read `~/logs/bootstrap_latest.log`, and run `bash tests/test_bootstrap.sh` to confirm the unattended helpers still pass.
 6. **Preview the documentation** – install MkDocs (`pip install mkdocs`) and run `mkdocs serve --config-file docs/mkdocs.yml` to review this site locally with live reloading.
 
+## MCP Server Playbook
+
+1. **Configura parámetros** – edita `config/versions.conf` y actualiza la sección *MCP Service Configuration* con puertos y rutas adecuadas.
+2. **Instalación directa** – ejecuta `./scripts/install_mcp.sh` para crear el usuario `mcp`, carpetas (`/var/lib/mcp`, `/var/log/mcp`) y desplegar `systemd/mcp.service`.
+3. **Bootstrap dedicado** – utiliza `./bootstrap.sh --mcp` para orquestar la instalación completa desde el orquestador principal.
+4. **Ejecución** – `./scripts/run_mcp.sh` carga `/etc/mcp/mcp.env`, envía logs a `logs/mcp-server.log` y lanza el binario configurado.
+5. **Supervisión** – valida disponibilidad con `./scripts/watchdog_mcp.sh` o `sudo systemctl status mcp.service`.
+6. **Calidad continua** – corre `./scripts/run_tests.sh` para generar reportes de cobertura ≥80 % y validar el watchdog.
+
 ## Project at a Glance
 
 | Area | Highlights |
