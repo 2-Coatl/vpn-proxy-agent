@@ -41,8 +41,14 @@ create_service_principals() {
 
 install_dependencies() {
     log_section "Installing dependencies"
-    local packages=("curl" "jq" "netcat" "python3")
+    local packages=("curl" "jq" "netcat" "python3" "ripgrep")
     install_packages "${packages[@]}"
+}
+
+configure_language_toolchain() {
+    local mise_config="${HOME}/.config/mise/config.toml"
+    log_section "Configuring language runtimes"
+    LANGUAGE_TOOLCHAIN_SUPPRESS_HEADER=1 configure_language_runtimes "$mise_config"
 }
 
 prepare_directories() {
@@ -130,6 +136,7 @@ deploy_systemd_unit() {
 main() {
     create_service_principals
     install_dependencies
+    configure_language_toolchain
     prepare_directories
     install_binary_stub
     configure_environment_file
