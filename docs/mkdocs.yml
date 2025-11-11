@@ -2,6 +2,7 @@ site_name: VPN Proxy Agent Docs
 nav:
   - Home: index.md
   - Repository Overview: about.md
+  - Use Case Catalogue: use_cases.md
   - MkDocs Tutorial: mkdocs_tutorial.md
   - Material for MkDocs: material_for_mkdocs.md
   - PR Workflow Guidance: pr_workflow.md

@@ -122,7 +122,7 @@ test_logging_preserves_local_paths() {
         echo "LOGS_DIR=$LOGS_DIR"
     )
 
-    local expected_logs_dir="${LOCAL_PROJECT_ROOT}/utils/logs"
+    local expected_logs_dir="${LOCAL_PROJECT_ROOT}/logs"
     local actual_logs_dir
     actual_logs_dir=$(echo "$output" | awk -F'=' '/^LOGS_DIR=/ {print $2}')
 
@@ -172,10 +172,10 @@ test_validation() {
 test_common() {
     echo ""
     echo "=== Testing Common Functions ==="
-    
+
     # Test OS detection
     assert_true "detect_os_version" "OS detection"
-    
+
     # Test string utilities
     local test_string="  test  "
     local trimmed=$(trim "$test_string")
@@ -197,10 +197,253 @@ test_common() {
     # Test temp directory creation
     local temp_dir=$(create_temp_dir "test")
     assert_true "[ -d '$temp_dir' ]" "create_temp_dir function"
-    
+
     # Test cleanup
     assert_true "cleanup_temp_dir '$temp_dir'" "cleanup_temp_dir function"
     assert_false "[ -d '$temp_dir' ]" "temp directory cleaned up"
+}
+
+test_install_packages_cleans_cache() {
+    echo ""
+    echo "=== Testing install_packages Cache Cleanup ==="
+
+    local output
+    output=$(
+        set -uo pipefail
+        cd "$LOCAL_PROJECT_ROOT"
+        source "./utils/logging.sh"
+        source "./utils/common.sh"
+
+        log_info() { :; }
+        log_success() { :; }
+        log_error() { echo "[ERROR] $*" >&2; }
+        detect_os_version() { OS_ID=ubuntu; OS_VERSION=22.04; OS_CODENAME=jammy; OS_PRETTY_NAME="Ubuntu 22.04.6 LTS"; return 0; }
+        is_debian_based() { return 0; }
+        is_redhat_based() { return 1; }
+        sudo() { echo "sudo $*"; return 0; }
+
+        install_packages curl
+    )
+
+    assert_true "echo \"$output\" | grep -F 'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl' >/dev/null" "install_packages triggers apt install"
+    assert_true "echo \"$output\" | grep -F 'sudo apt-get clean' >/dev/null" "install_packages runs apt-get clean"
+}
+
+test_port_availability_helper() {
+    echo ""
+    echo "=== Testing Port Availability Helper ==="
+
+    local busy_result
+    busy_result=$(
+        set -uo pipefail
+        cd "$LOCAL_PROJECT_ROOT"
+        source "./utils/logging.sh"
+        source "./utils/validation.sh"
+
+        ss() {
+            cat <<'EOF'
+State  Recv-Q Send-Q Local Address:Port Peer Address:Port Process
+LISTEN 0      128    0.0.0.0:53        0.0.0.0:*        users:("named",pid=123,fd=3)
+EOF
+        }
+
+        log_warn() { :; }
+        log_error() { :; }
+
+        if is_port_available 53; then
+            echo "available"
+        else
+            echo "in_use"
+        fi
+    )
+
+    busy_result=$(echo "$busy_result" | tail -n 1)
+
+    assert_equals "in_use" "$busy_result" "is_port_available detects in-use port"
+
+    local free_result
+    free_result=$(
+        set -uo pipefail
+        cd "$LOCAL_PROJECT_ROOT"
+        source "./utils/logging.sh"
+        source "./utils/validation.sh"
+
+        ss() {
+            cat <<'EOF'
+EOF
+        }
+
+        log_warn() { :; }
+        log_error() { :; }
+
+        if is_port_available 2222; then
+            echo "available"
+        else
+            echo "in_use"
+        fi
+    )
+
+    free_result=$(echo "$free_result" | tail -n 1)
+
+    assert_equals "available" "$free_result" "is_port_available reports available port"
+}
+
+test_dns_stub_listener_release_for_tunnel_port() {
+    echo ""
+    echo "=== Testing DNS Stub Listener Release for Tunnel Port ==="
+
+    local temp_root
+    temp_root="$(mktemp -d)"
+    local resolved_conf="${temp_root}/resolved.conf"
+    local systemctl_log="${temp_root}/systemctl.log"
+
+    cat >"$resolved_conf" <<'EOF'
+[Resolve]
+DNS=1.1.1.1
+DNSStubListener=yes
+EOF
+
+    local output
+    output=$(
+        set -euo pipefail
+        cd "$LOCAL_PROJECT_ROOT"
+        source "./utils/logging.sh"
+        source "./utils/validation.sh"
+        source "./utils/common.sh"
+
+        is_port_available() { return 1; }
+        log_info() { echo "INFO:$*"; }
+        log_success() { echo "SUCCESS:$*"; }
+        log_warn() { echo "WARN:$*"; }
+        log_error() { echo "ERROR:$*" >&2; }
+
+        sudo() { "$@"; }
+        systemctl() {
+            echo "systemctl $*" >>"${systemctl_log}"
+            if [ "$1" = "is-active" ]; then
+                return 0
+            fi
+            return 0
+        }
+
+        export SYSTEMD_RESOLVED_CONF_PATH="${resolved_conf}"
+        export DNS_RESOLV_CONF_PATH="${temp_root}/resolv.conf"
+
+        ensure_dns_stub_listener_disabled 53
+    )
+
+    assert_true "grep -q 'Disabling systemd-resolved stub listener to free port 53' <<< \"$output\"" "helper logs stub listener disablement"
+    assert_true "grep -q '^DNSStubListener=no$' '$resolved_conf'" "DNS stub listener disabled in config"
+    assert_true "[ -f '${temp_root}/resolv.conf' ]" "helper ensures resolv.conf placeholder created"
+    assert_true "grep -q 'systemctl restart systemd-resolved' '${systemctl_log}'" "systemd-resolved restart triggered"
+
+    rm -rf "$temp_root"
+}
+
+test_configure_git_proxy_sets_git_config() {
+    echo ""
+    echo "=== Testing Git Proxy Configuration Helper ==="
+
+    local temp_home
+    temp_home="$(mktemp -d)"
+    local log_file="${temp_home}/git_proxy.log"
+
+    (
+        set -euo pipefail
+        cd "$LOCAL_PROJECT_ROOT"
+        HOME="$temp_home"
+        export HOME
+        source "./utils/logging.sh"
+        source "./utils/common.sh"
+
+        log_section() { echo "SECTION:$*"; }
+        log_info() { echo "INFO:$*"; }
+        log_warn() { echo "WARN:$*"; }
+        log_error() { echo "ERROR:$*"; }
+
+        configure_git_proxy "socks5h://127.0.0.1:1080"
+
+        echo "GITHUB_PROXY=$(git config --global --get http.https://github.com.proxy)"
+        echo "HTTP_PROXY=$(git config --global --get http.proxy)"
+        echo "HTTPS_PROXY=$(git config --global --get https.proxy)"
+    ) >"$log_file" 2>&1
+
+    assert_true "grep -q 'SECTION:Configuring Git proxy' '$log_file'" "configure_git_proxy announces action"
+    assert_true "grep -q 'INFO:Set Git proxy to socks5h://127.0.0.1:1080 for GitHub operations' '$log_file'" "configure_git_proxy logs proxy destination"
+    assert_true "grep -q 'GITHUB_PROXY=socks5h://127.0.0.1:1080' '$log_file'" "GitHub-specific proxy configured"
+    assert_true "grep -q 'HTTP_PROXY=socks5h://127.0.0.1:1080' '$log_file'" "global http proxy configured"
+    assert_true "grep -q 'HTTPS_PROXY=socks5h://127.0.0.1:1080' '$log_file'" "global https proxy configured"
+
+    local clear_output
+    clear_output=$(
+        set -euo pipefail
+        cd "$LOCAL_PROJECT_ROOT"
+        HOME="$temp_home"
+        export HOME
+        source "./utils/logging.sh"
+        source "./utils/common.sh"
+
+        log_section() { echo "SECTION:$*"; }
+        log_info() { echo "INFO:$*"; }
+        log_warn() { echo "WARN:$*"; }
+        log_error() { echo "ERROR:$*"; }
+
+        configure_git_proxy ""
+        if git config --global --get http.https://github.com.proxy >/dev/null 2>&1; then
+            echo present
+        else
+            echo missing
+        fi
+    )
+
+    local clear_result
+    clear_result=$(echo "$clear_output" | tail -n 1)
+    assert_true "echo "$clear_output" | grep -q 'INFO:Cleared Git proxy configuration for GitHub'" "configure_git_proxy logs clearing action"
+    assert_equals "missing" "$clear_result" "configure_git_proxy clears proxy when empty value provided"
+
+    rm -rf "$temp_home"
+}
+
+test_configure_language_runtimes_generates_mise_config() {
+    echo ""
+    echo "=== Testing Language Runtime Configuration Helper ==="
+
+    local temp_root
+    temp_root="$(mktemp -d)"
+    local config_path="${temp_root}/config.toml"
+
+    local log_file="${temp_root}/mise.log"
+
+    (
+        set -euo pipefail
+        cd "$LOCAL_PROJECT_ROOT"
+        source "./utils/logging.sh"
+        source "./utils/common.sh"
+
+        MCP_RUNTIME_TOOLCHAIN=(
+            "python|Python|3.12.6|3.12.6"
+            "node|Node.js|20.19.5|22.0.0"
+            "ruby|Ruby|3.4.4|3.2.3"
+        )
+
+        log_section() { echo "SECTION:$*"; }
+        log_info() { echo "INFO:$*"; }
+        log_warn() { echo "WARN:$*"; }
+
+        mise() { echo "mise ${*}"; }
+
+        configure_language_runtimes "$config_path"
+    ) >"$log_file" 2>&1
+
+    assert_true "grep -q -- 'SECTION:Configuring language runtimes' '$log_file'" "helper announces runtime configuration"
+    assert_true "grep -q -- 'INFO:# Python: 3.12.6' '$log_file'" "helper logs python version"
+    assert_true "grep -q -- 'mise ${config_path} tools: python@3.12.6' '$log_file'" "helper logs python mise command"
+    assert_true "grep -q -- '\\[tools\\]' '$config_path'" "mise config contains tools table"
+    assert_true "grep -q -- \"python = \\\"3.12.6\\\"\" '$config_path'" "python version written to config"
+    assert_true "grep -q -- \"node = \\\"20.19.5\\\"\" '$config_path'" "node version written to config"
+    assert_true "grep -q -- \"ruby = \\\"3.4.4\\\"\" '$config_path'" "ruby version written to config"
+
+    rm -rf "$temp_root"
 }
 
 # Ensure bootstrap selection works without predefined arguments
@@ -280,6 +523,104 @@ EOF
     assert_true "[ -d '${temp_root}/logs' ]" "env.sh ensures LOGS_DIR exists"
     assert_true "[ -d '${temp_root}/backups' ]" "env.sh ensures BACKUPS_DIR exists"
     assert_true "[ -d '${temp_root}/data' ]" "env.sh ensures DATA_DIR exists"
+
+    rm -rf "$temp_root"
+}
+
+test_env_fallback_for_non_ubuntu_users() {
+    echo ""
+    echo "=== Testing Environment Fallback for Non-Ubuntu Users ==="
+
+    local temp_root
+    temp_root="$(mktemp -d)"
+    local temp_utils_dir="${temp_root}/utils"
+    local temp_config_dir="${temp_root}/config"
+    mkdir -p "$temp_utils_dir" "$temp_config_dir"
+
+    cp "${PROJECT_ROOT}/utils/env.sh" "${temp_utils_dir}/env.sh"
+
+    cat >"${temp_config_dir}/versions.conf" <<'EOF'
+: "${PROJECT_ROOT:=/home/ubuntu/projects}"
+: "${SCRIPTS_DIR:=/home/ubuntu/scripts}"
+: "${LOGS_DIR:=/home/ubuntu/logs}"
+: "${BACKUPS_DIR:=/home/ubuntu/backups}"
+: "${DATA_DIR:=/srv/data}"
+EOF
+
+    local env_output
+    env_output=$(cd "$temp_root" && (
+        set -euo pipefail
+        whoami() { echo vagrant; }
+        source "utils/env.sh"
+        echo "PROJECT_ROOT=$PROJECT_ROOT"
+        echo "SCRIPTS_DIR=$SCRIPTS_DIR"
+        echo "LOGS_DIR=$LOGS_DIR"
+        echo "BACKUPS_DIR=$BACKUPS_DIR"
+        echo "DATA_DIR=$DATA_DIR"
+    ))
+
+    local project_root
+    project_root=$(echo "$env_output" | awk -F'=' '/^PROJECT_ROOT=/ {print $2}')
+    local scripts_dir
+    scripts_dir=$(echo "$env_output" | awk -F'=' '/^SCRIPTS_DIR=/ {print $2}')
+    local logs_dir
+    logs_dir=$(echo "$env_output" | awk -F'=' '/^LOGS_DIR=/ {print $2}')
+    local backups_dir
+    backups_dir=$(echo "$env_output" | awk -F'=' '/^BACKUPS_DIR=/ {print $2}')
+    local data_dir
+    data_dir=$(echo "$env_output" | awk -F'=' '/^DATA_DIR=/ {print $2}')
+
+    assert_equals "$temp_root" "$project_root" "env.sh maps PROJECT_ROOT to repository root for non-ubuntu"
+    assert_equals "${temp_root}/scripts" "$scripts_dir" "env.sh maps SCRIPTS_DIR to repository scripts directory"
+    assert_equals "${temp_root}/logs" "$logs_dir" "env.sh maps LOGS_DIR to repository logs directory"
+    assert_equals "${temp_root}/backups" "$backups_dir" "env.sh maps BACKUPS_DIR to repository backups directory"
+    assert_equals "${temp_root}/data" "$data_dir" "env.sh maps DATA_DIR to repository data directory"
+
+    assert_true "[ -d '${temp_root}/logs' ]" "env.sh creates logs directory for non-ubuntu"
+    assert_true "[ -d '${temp_root}/backups' ]" "env.sh creates backups directory for non-ubuntu"
+    assert_true "[ -d '${temp_root}/data' ]" "env.sh creates data directory for non-ubuntu"
+
+    rm -rf "$temp_root"
+}
+
+test_env_recovers_scripts_dir_when_required_scripts_missing() {
+    echo ""
+    echo "=== Testing Environment Scripts Directory Recovery ==="
+
+    local temp_root
+    temp_root="$(mktemp -d)"
+    local temp_utils_dir="${temp_root}/utils"
+    local temp_config_dir="${temp_root}/config"
+    local temp_scripts_dir="${temp_root}/scripts"
+
+    mkdir -p "$temp_utils_dir" "$temp_config_dir" "$temp_scripts_dir"
+
+    cp "${PROJECT_ROOT}/utils/env.sh" "${temp_utils_dir}/env.sh"
+
+    cat >"${temp_config_dir}/versions.conf" <<'EOF'
+: "${PROJECT_ROOT:=/home/ubuntu/projects}"
+: "${SCRIPTS_DIR:=/home/ubuntu/scripts}"
+: "${LOGS_DIR:=/home/ubuntu/logs}"
+: "${BACKUPS_DIR:=/home/ubuntu/backups}"
+: "${DATA_DIR:=/srv/data}"
+EOF
+
+    touch "${temp_scripts_dir}/setup_ssh.sh"
+
+    local env_output
+    env_output=$(cd "$temp_root" && (
+        set -euo pipefail
+        whoami() { echo ubuntu; }
+        SCRIPTS_DIR="${temp_utils_dir}/scripts"
+        export SCRIPTS_DIR
+        source "utils/env.sh"
+        echo "SCRIPTS_DIR=$SCRIPTS_DIR"
+    ))
+
+    local scripts_dir
+    scripts_dir=$(echo "$env_output" | awk -F'=' '/^SCRIPTS_DIR=/ {print $2}')
+
+    assert_equals "${temp_scripts_dir}" "$scripts_dir" "env.sh resets SCRIPTS_DIR to repository scripts when required scripts missing"
 
     rm -rf "$temp_root"
 }
@@ -534,7 +875,7 @@ test_docs_site_content() {
     assert_true "grep -E 'Repository Overview: about\\.md' '$mkdocs_config' >/dev/null" "navigation includes Repository Overview"
     assert_true "grep -E 'MkDocs Tutorial: mkdocs_tutorial\\.md' '$mkdocs_config' >/dev/null" "navigation includes MkDocs Tutorial"
     assert_true "grep -E 'PR Workflow Guidance: pr_workflow\\.md' '$mkdocs_config' >/dev/null" "navigation includes PR workflow guidance"
-    assert_true "grep -E 'name: readthedocs' '$mkdocs_config' >/dev/null" "readthedocs theme configured"
+    assert_true "grep -E 'name: (material|readthedocs)' '$mkdocs_config' >/dev/null" "mkdocs theme configured"
 }
 
 # -----------------------------------------------------------------------------
@@ -591,8 +932,15 @@ main() {
     test_logging_preserves_local_paths
     test_validation
     test_common
+    test_install_packages_cleans_cache
+    test_port_availability_helper
+    test_dns_stub_listener_release_for_tunnel_port
+    test_configure_git_proxy_sets_git_config
+    test_configure_language_runtimes_generates_mise_config
     test_select_install_type_interactive
     test_environment_setup
+    test_env_fallback_for_non_ubuntu_users
+    test_env_recovers_scripts_dir_when_required_scripts_missing
     test_env_sourcing_alignment
     test_env_preserves_script_context
     test_scripts_enforce_strict_mode

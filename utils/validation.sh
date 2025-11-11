@@ -241,13 +241,48 @@ validate_md5() {
 validate_port() {
     local port="$1"
     local description="${2:-Port}"
-    
+
     if ! [[ "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
         log_error "$description invalid: $port (must be 1-65535)"
         return 1
     fi
-    
+
     log_debug "$description valid: $port"
+    return 0
+}
+
+# Determine if a port is free for use without emitting user-facing errors
+is_port_available() {
+    local port="$1"
+
+    if ! [[ "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+        return 1
+    fi
+
+    if command -v ss >/dev/null 2>&1; then
+        if ss -H -ltn "sport = :$port" 2>/dev/null | grep -q '[^[:space:]]'; then
+            return 1
+        fi
+        if ss -H -lun "sport = :$port" 2>/dev/null | grep -q '[^[:space:]]'; then
+            return 1
+        fi
+        return 0
+    fi
+
+    if command -v lsof >/dev/null 2>&1; then
+        if lsof -nP -i ":$port" 2>/dev/null | grep -q '[^[:space:]]'; then
+            return 1
+        fi
+        return 0
+    fi
+
+    if command -v netstat >/dev/null 2>&1; then
+        if netstat -tuln 2>/dev/null | awk '{print $4}' | grep -qE "[:.]$port$"; then
+            return 1
+        fi
+        return 0
+    fi
+
     return 0
 }
 
@@ -282,11 +317,11 @@ validate_port_available() {
         return 1
     fi
     
-    if netstat -tuln 2>/dev/null | grep -q ":$port "; then
+    if ! is_port_available "$port"; then
         log_error "Port $port is already in use"
         return 1
     fi
-    
+
     log_debug "Port $port is available"
     return 0
 }
@@ -457,6 +492,7 @@ export -f validate_file_executable
 export -f validate_checksum
 export -f validate_md5
 export -f validate_port
+export -f is_port_available
 export -f validate_ip
 export -f validate_port_available
 export -f validate_url
