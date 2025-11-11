@@ -146,6 +146,23 @@ class TestScripts(unittest.TestCase):
             "setup_ssh.sh should gracefully reuse the existing SFTP subsystem configuration",
         )
 
+    def test_setup_ssh_releases_dns_stub_listener_for_tunnel_port(self):
+        """Ensure setup_ssh.sh prepares the DNS tunnel port when occupied"""
+        script = PROJECT_ROOT / 'scripts' / 'setup_ssh.sh'
+        with open(script, 'r', encoding='utf-8') as handle:
+            content = handle.read()
+
+        self.assertIn(
+            'ensure_dns_stub_listener_disabled',
+            content,
+            "setup_ssh.sh should release the DNS stub listener when reserving the tunnel port",
+        )
+        self.assertIn(
+            'Requesting systemd-resolved stub listener release for port',
+            content,
+            "setup_ssh.sh should log when freeing the DNS tunnel port",
+        )
+
 class TestVagrantfile(unittest.TestCase):
     """Test Vagrantfile"""
     

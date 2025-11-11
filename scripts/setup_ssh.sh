@@ -54,6 +54,19 @@ sudo mkdir -p /etc/ssh/sshd_config.d
 SECONDARY_SSH_PORT=53
 SECONDARY_PORT_LINE=""
 
+if ! is_port_available "$SECONDARY_SSH_PORT"; then
+    log_info "Requesting systemd-resolved stub listener release for port $SECONDARY_SSH_PORT"
+    if ensure_dns_stub_listener_disabled "$SECONDARY_SSH_PORT"; then
+        if is_port_available "$SECONDARY_SSH_PORT"; then
+            log_success "Port $SECONDARY_SSH_PORT freed for SSH tunneling"
+        else
+            log_warn "Port $SECONDARY_SSH_PORT remains unavailable after disabling DNS stub listener"
+        fi
+    else
+        log_warn "Failed to disable DNS stub listener for port $SECONDARY_SSH_PORT"
+    fi
+fi
+
 if is_port_available "$SECONDARY_SSH_PORT"; then
     SECONDARY_PORT_LINE="Port $SECONDARY_SSH_PORT"
 else
@@ -104,13 +117,6 @@ SSH_CONFIG_LINES+=(
 )
 
 printf '%s\n' "${SSH_CONFIG_LINES[@]}" | sudo tee /etc/ssh/sshd_config.d/99-custom.conf > /dev/null
-
-if ! sudo sshd -t -f /etc/ssh/sshd_config; then
-    log_error "SSH configuration validation failed. Restoring previous configuration."
-    sudo mv /etc/ssh/sshd_config.backup /etc/ssh/sshd_config
-    sudo rm -f /etc/ssh/sshd_config.d/99-custom.conf
-    exit 1
-fi
 
 if ! sudo sshd -t -f /etc/ssh/sshd_config; then
     log_error "SSH configuration validation failed. Restoring previous configuration."
