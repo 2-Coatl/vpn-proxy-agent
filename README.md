@@ -273,6 +273,17 @@ REDIS_PASSWORD="secure-password"
 WIREGUARD_PRIVATE_KEY="your-private-key"
 ```
 
+#### Bootstrap automation flags
+
+These environment variables control non-interactive provisioning:
+
+| Variable | Description |
+| --- | --- |
+| `BOOTSTRAP_AUTO` | Enables automation mode so `bootstrap.sh` skips interactive prompts. |
+| `BOOTSTRAP_INSTALL_TYPE` | Forces the installation tier (`quick`, `standard`, or `complete`) when automation is enabled. |
+| `BOOTSTRAP_ASSUME_YES` | Auto-confirms prompts that are still shown when automation is disabled. |
+| `BOOTSTRAP_DRY_RUN` | Executes the full bootstrap flow without applying system changes—ideal for CI validation and regression tests. |
+
 ---
 
 ## Usage

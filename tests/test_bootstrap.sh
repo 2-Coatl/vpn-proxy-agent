@@ -125,12 +125,45 @@ test_vagrant_auto_bootstrap() {
     echo "[PASS] Vagrant auto bootstrap provisioning"
 }
 
+test_bootstrap_dry_run_flow() {
+    echo ""
+    echo "=== Testing bootstrap automation dry run flow ==="
+
+    local output
+    local exit_code=0
+
+    output=$(cd "$PROJECT_ROOT" && BOOTSTRAP_AUTO=1 BOOTSTRAP_INSTALL_TYPE="standard" BOOTSTRAP_ASSUME_YES=1 BOOTSTRAP_DRY_RUN=1 ./bootstrap.sh --standard 2>&1) || exit_code=$?
+
+    TESTS_RUN=$((TESTS_RUN + 1))
+
+    if [ $exit_code -ne 0 ]; then
+        echo "[FAIL] bootstrap automation dry run flow"
+        echo "  Exit code: $exit_code"
+        echo "  Output:"
+        echo "$output"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        return
+    fi
+
+    if grep -q "\\[DRY RUN\\]" <<<"$output" && grep -q "Automation mode detected" <<<"$output"; then
+        echo "[PASS] bootstrap automation dry run flow"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        echo "[FAIL] bootstrap automation dry run flow"
+        echo "  Expected dry run markers and automation log entries"
+        echo "  Output:"
+        echo "$output"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    fi
+}
+
 # Append new test to run sequence
 run_all_tests() {
     test_auto_mode_detection
     test_auto_install_resolution
     test_auto_confirmation
     test_vagrant_auto_bootstrap
+    test_bootstrap_dry_run_flow
 
     echo ""
     echo "Tests run: $TESTS_RUN"
