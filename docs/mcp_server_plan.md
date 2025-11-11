@@ -14,6 +14,8 @@ Este plan integra todas las tareas y subtareas necesarias para implementar y ope
   - [x] Instalar paquetes idempotentemente con `install_packages`.
   - [x] Crear usuario/grupo de servicio y directorios (`/var/lib/mcp`, `/var/log/mcp`).
   - [x] Gestionar certificados y llaves en una ruta parametrizable.
+  - [x] Preparar runtimes con `mise` tomando versiones de `config/versions.conf`.
+  - [x] Configurar Git para usar el túnel SOCKS5 aplicando `MCP_GIT_PROXY` desde `config/versions.conf`.
 - [x] Elaborar `scripts/run_mcp.sh` como wrapper del binario o entrypoint Python.
   - [x] Incluir soporte para variables de entorno y archivo `.env` opcional.
   - [x] Redirigir logs a `logs/mcp-server.log` con rotación basada en `logrotate`.

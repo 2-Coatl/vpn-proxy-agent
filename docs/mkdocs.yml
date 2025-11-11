@@ -2,6 +2,36 @@ site_name: VPN Proxy Agent Docs
 nav:
   - Home: index.md
   - Repository Overview: about.md
+  - Use Cases:
+      - Overview: use_cases.md
+      - UC01 – Bootstrap Standard Install: use_cases/uc01_bootstrap_standard_install.md
+      - UC02 – Master Setup Pipeline: use_cases/uc02_master_setup_pipeline.md
+      - UC03 – Install MCP Runtime: use_cases/uc03_install_mcp_runtime.md
+      - UC04 – Run MCP Service: use_cases/uc04_run_mcp_service.md
+      - UC05 – Watchdog MCP Recovery: use_cases/uc05_watchdog_mcp_recovery.md
+      - UC06 – Setup SSH Service: use_cases/uc06_setup_ssh_service.md
+      - UC07 – Setup Tunnel Listener: use_cases/uc07_setup_tunnel_listener.md
+      - UC08 – Watchdog Tunnel Continuity: use_cases/uc08_watchdog_tunnel_continuity.md
+      - UC09 – Setup WireGuard Gateway: use_cases/uc09_setup_wireguard_gateway.md
+      - UC10 – Setup Docker Runtime: use_cases/uc10_setup_docker_runtime.md
+      - UC11 – Backup Daily Rotations: use_cases/uc11_backup_daily_rotations.md
+      - UC12 – Backup System Snapshot: use_cases/uc12_backup_system_snapshot.md
+      - UC13 – Safe Update Stack: use_cases/uc13_safe_update_stack.md
+      - UC14 – Health Check Monitoring: use_cases/uc14_health_check_monitoring.md
+      - UC15 – Diagnose All Tooling: use_cases/uc15_diagnose_all_tooling.md
+      - UC16 – Dashboard Status Board: use_cases/uc16_dashboard_status_board.md
+      - UC17 – Run Tests Pipeline: use_cases/uc17_run_tests_pipeline.md
+      - UC18 – Validate Build Artifacts: use_cases/uc18_validate_build_artifacts.md
+      - UC19 – Validate Wrapper Entrypoint: use_cases/uc19_validate_wrapper_entrypoint.md
+      - UC20 – Build Docs Pipeline: use_cases/uc20_build_docs_pipeline.md
+      - UC21 – Build CPython from Source: use_cases/uc21_build_cpython_from_source.md
+      - UC22 – Build Wrapper CI Integration: use_cases/uc22_build_wrapper_ci_integration.md
+      - UC23 – Feature Install Customization: use_cases/uc23_feature_install_customization.md
+      - UC24 – Restart Services Recovery: use_cases/uc24_restart_services_recovery.md
+      - UC25 – Run MCP Wrapper: use_cases/uc25_run_mcp_wrapper.md
+      - UC26 – Backup Windows Diagnostics: use_cases/uc26_backup_windows_diagnostics.md
+      - UC27 – Windows Start Environment: use_cases/uc27_windows_start_environment.md
+      - UC28 – Windows Stop Environment: use_cases/uc28_windows_stop_environment.md
   - MkDocs Tutorial: mkdocs_tutorial.md
   - Material for MkDocs: material_for_mkdocs.md
   - PR Workflow Guidance: pr_workflow.md
