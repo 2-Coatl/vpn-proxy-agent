@@ -41,7 +41,7 @@ create_service_principals() {
 
 install_dependencies() {
     log_section "Installing dependencies"
-    local packages=("curl" "jq" "netcat" "python3")
+    local packages=("curl" "jq" "netcat" "python3" "ripgrep")
     install_packages "${packages[@]}"
 }
 

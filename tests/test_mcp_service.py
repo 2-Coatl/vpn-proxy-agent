@@ -73,6 +73,11 @@ class TestMcpServiceAssets(unittest.TestCase):
         self.assertIn("Configuring language runtimes", content)
         self.assertIn(".config/mise/config.toml", content)
 
+    def test_install_script_installs_code_search_tooling(self) -> None:
+        """The MCP host must provide ripgrep for repository search operations."""
+        content = self.install_script.read_text(encoding="utf-8")
+        self.assertIn("ripgrep", content)
+
     def test_run_script_wraps_service_binary(self) -> None:
         """Runtime wrapper should load environment, log output and exec the binary."""
         self.assertTrue(self.run_script.exists(), "run_mcp.sh must exist")

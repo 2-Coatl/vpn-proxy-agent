@@ -358,6 +358,9 @@ tail -f /var/log/mcp/mcp-server.log
 
 La ruta `--mcp` ejecuta `install_mcp.sh`, valida el servicio con `watchdog_mcp.sh` y deja listo el unit file `systemd/mcp.service`.
 
+El instalador también provisiona utilidades de búsqueda como `ripgrep` para que el servidor MCP pueda responder consultas de código
+(`rg "is_truth" -n utils`, por ejemplo) sin intervención manual.
+
 ### 4. Operación diaria
 - Inicia el proceso con `/usr/local/bin/run_mcp.sh` (empaquetado por el instalador).
 - Supervisa la disponibilidad con `./scripts/watchdog_mcp.sh` o `sudo systemctl status mcp.service`.
