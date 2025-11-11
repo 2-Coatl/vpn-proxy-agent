@@ -340,6 +340,48 @@ EOF
     rm -rf "$temp_root"
 }
 
+test_configure_language_runtimes_generates_mise_config() {
+    echo ""
+    echo "=== Testing Language Runtime Configuration Helper ==="
+
+    local temp_root
+    temp_root="$(mktemp -d)"
+    local config_path="${temp_root}/config.toml"
+
+    local log_file="${temp_root}/mise.log"
+
+    (
+        set -euo pipefail
+        cd "$LOCAL_PROJECT_ROOT"
+        source "./utils/logging.sh"
+        source "./utils/common.sh"
+
+        MCP_RUNTIME_TOOLCHAIN=(
+            "python|Python|3.12.6|3.12.6"
+            "node|Node.js|20.19.5|22.0.0"
+            "ruby|Ruby|3.4.4|3.2.3"
+        )
+
+        log_section() { echo "SECTION:$*"; }
+        log_info() { echo "INFO:$*"; }
+        log_warn() { echo "WARN:$*"; }
+
+        mise() { echo "mise ${*}"; }
+
+        configure_language_runtimes "$config_path"
+    ) >"$log_file" 2>&1
+
+    assert_true "grep -q -- 'SECTION:Configuring language runtimes' '$log_file'" "helper announces runtime configuration"
+    assert_true "grep -q -- 'INFO:# Python: 3.12.6' '$log_file'" "helper logs python version"
+    assert_true "grep -q -- 'mise ${config_path} tools: python@3.12.6' '$log_file'" "helper logs python mise command"
+    assert_true "grep -q -- '\\[tools\\]' '$config_path'" "mise config contains tools table"
+    assert_true "grep -q -- \"python = \\\"3.12.6\\\"\" '$config_path'" "python version written to config"
+    assert_true "grep -q -- \"node = \\\"20.19.5\\\"\" '$config_path'" "node version written to config"
+    assert_true "grep -q -- \"ruby = \\\"3.4.4\\\"\" '$config_path'" "ruby version written to config"
+
+    rm -rf "$temp_root"
+}
+
 # Ensure bootstrap selection works without predefined arguments
 test_select_install_type_interactive() {
     echo ""
@@ -829,6 +871,7 @@ main() {
     test_install_packages_cleans_cache
     test_port_availability_helper
     test_dns_stub_listener_release_for_tunnel_port
+    test_configure_language_runtimes_generates_mise_config
     test_select_install_type_interactive
     test_environment_setup
     test_env_fallback_for_non_ubuntu_users

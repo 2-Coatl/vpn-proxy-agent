@@ -208,6 +208,85 @@ create_tarball() {
     return 1
 }
 
+# -----------------------------------------------------------------------------
+# Runtime Toolchain Helpers
+# -----------------------------------------------------------------------------
+
+configure_language_runtimes() {
+    local config_path="${1:-${HOME}/.config/mise/config.toml}"
+    local -a toolchain_entries=("${MCP_RUNTIME_TOOLCHAIN[@]-}")
+
+    if [ ${#toolchain_entries[@]} -eq 0 ]; then
+        log_warn "No runtime toolchain entries defined. Skipping language runtime configuration."
+        return 0
+    fi
+
+    if [ "${LANGUAGE_TOOLCHAIN_SUPPRESS_HEADER:-0}" != "1" ]; then
+        log_section "Configuring language runtimes"
+    fi
+
+    local config_dir
+    config_dir="$(dirname "$config_path")"
+    mkdir -p "$config_dir"
+
+    local tmp_config
+    tmp_config="$(mktemp)"
+
+    {
+        echo "[tools]"
+        local entry
+        for entry in "${toolchain_entries[@]}"; do
+            local tool_name display_name version default_version
+            IFS='|' read -r tool_name display_name version default_version <<< "$entry"
+            if [ -z "$tool_name" ] || [ -z "$version" ]; then
+                log_warn "Skipping invalid runtime entry: $entry"
+                continue
+            fi
+            echo "${tool_name} = \"${version}\""
+        done
+    } >"$tmp_config"
+
+    install -m 644 "$tmp_config" "$config_path"
+    rm -f "$tmp_config"
+
+    log_info "mise configuration written to ${config_path}"
+
+    local has_mise=1
+    if ! command -v mise >/dev/null 2>&1; then
+        has_mise=0
+        log_warn "mise command not found. Logging desired activations for manual execution."
+    fi
+
+    local entry
+    for entry in "${toolchain_entries[@]}"; do
+        local tool_name display_name version default_version
+        IFS='|' read -r tool_name display_name version default_version <<< "$entry"
+        if [ -z "$tool_name" ] || [ -z "$version" ]; then
+            continue
+        fi
+
+        if [ -z "$display_name" ]; then
+            display_name="$tool_name"
+        fi
+
+        local descriptor="# ${display_name}: ${version}"
+        if [ -n "$default_version" ]; then
+            descriptor+=" (default: ${default_version})"
+        fi
+        log_info "$descriptor"
+
+        log_info "mise ${config_path} tools: ${tool_name}@${version}"
+
+        if [ $has_mise -eq 1 ]; then
+            if ! mise use -g "${tool_name}@${version}" >/dev/null 2>&1; then
+                log_warn "mise failed to activate ${tool_name}@${version}"
+            fi
+        fi
+    done
+
+    return 0
+}
+
 # Download file with fallback (wget/curl)
 download_file() {
     local url="$1"
