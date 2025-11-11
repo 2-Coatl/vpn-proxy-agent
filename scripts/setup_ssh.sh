@@ -49,28 +49,78 @@ fi
 log_step 4 5 "Configuring SSH server"
 sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup
 
-sudo tee /etc/ssh/sshd_config.d/99-custom.conf > /dev/null << 'EOFSSHD'
-Port 22
-Port 53
-PermitRootLogin no
-PasswordAuthentication no
-PubkeyAuthentication yes
-ChallengeResponseAuthentication no
-UsePAM yes
-X11Forwarding no
-PrintMotd no
-AcceptEnv LANG LC_*
-Subsystem sftp /usr/lib/openssh/sftp-server
-AllowTcpForwarding yes
-GatewayPorts no
-ClientAliveInterval 60
-ClientAliveCountMax 3
-MaxAuthTries 3
-EOFSSHD
+sudo mkdir -p /etc/ssh/sshd_config.d
+
+SECONDARY_SSH_PORT=53
+SECONDARY_PORT_LINE=""
+
+if is_port_available "$SECONDARY_SSH_PORT"; then
+    SECONDARY_PORT_LINE="Port $SECONDARY_SSH_PORT"
+else
+    log_warn "Port $SECONDARY_SSH_PORT already in use. Skipping secondary SSH listener."
+fi
+
+SFTP_SUBSYSTEM_LINE=""
+
+if sshd_config_dump=$(sudo sshd -T 2>/dev/null); then
+    if grep -qi '^subsystem\s\+sftp' <<< "$sshd_config_dump"; then
+        log_info "Existing SFTP subsystem configuration detected; not adding duplicate entry"
+    else
+        log_info "No SFTP subsystem detected; adding default configuration"
+        SFTP_SUBSYSTEM_LINE="Subsystem sftp /usr/lib/openssh/sftp-server"
+    fi
+else
+    log_warn "Unable to inspect sshd configuration; ensuring SFTP subsystem is present"
+    SFTP_SUBSYSTEM_LINE="Subsystem sftp /usr/lib/openssh/sftp-server"
+fi
+
+SSH_CONFIG_LINES=("Port 22")
+
+if [ -n "$SECONDARY_PORT_LINE" ]; then
+    SSH_CONFIG_LINES+=("$SECONDARY_PORT_LINE")
+fi
+
+SSH_CONFIG_LINES+=(
+    "PermitRootLogin no"
+    "PasswordAuthentication no"
+    "PubkeyAuthentication yes"
+    "ChallengeResponseAuthentication no"
+    "UsePAM yes"
+    "X11Forwarding no"
+    "PrintMotd no"
+    "AcceptEnv LANG LC_*"
+)
+
+if [ -n "$SFTP_SUBSYSTEM_LINE" ]; then
+    SSH_CONFIG_LINES+=("$SFTP_SUBSYSTEM_LINE")
+fi
+
+SSH_CONFIG_LINES+=(
+    "AllowTcpForwarding yes"
+    "GatewayPorts no"
+    "ClientAliveInterval 60"
+    "ClientAliveCountMax 3"
+    "MaxAuthTries 3"
+)
+
+printf '%s\n' "${SSH_CONFIG_LINES[@]}" | sudo tee /etc/ssh/sshd_config.d/99-custom.conf > /dev/null
+
+if ! sudo sshd -t -f /etc/ssh/sshd_config; then
+    log_error "SSH configuration validation failed. Restoring previous configuration."
+    sudo mv /etc/ssh/sshd_config.backup /etc/ssh/sshd_config
+    sudo rm -f /etc/ssh/sshd_config.d/99-custom.conf
+    exit 1
+fi
 
 # Restart SSH
 log_step 5 5 "Restarting SSH service"
-sudo systemctl restart sshd
+if ! sudo systemctl reload ssh; then
+    log_warn "SSH reload failed, attempting full restart"
+    sudo systemctl restart ssh || {
+        log_error "Failed to restart SSH service"
+        exit 1
+    }
+fi
 
 log_success "SSH setup completed"
 echo ""

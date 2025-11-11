@@ -12,20 +12,31 @@
 __ENV_SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
 __ENV_SCRIPT_DIR="$(cd "$(dirname "$__ENV_SCRIPT_PATH")" && pwd)"
 
-# ----------------------------------------------------------------------------- 
+# -----------------------------------------------------------------------------
 # Cargar configuración desde versions.conf
-# ----------------------------------------------------------------------------- 
+# -----------------------------------------------------------------------------
 CONFIG_FILE="${__ENV_SCRIPT_DIR}/../config/versions.conf"
+__ENV_REPO_ROOT="$(cd "${__ENV_SCRIPT_DIR}/.." && pwd)"
+__ENV_REPO_PROJECT_ROOT="$__ENV_REPO_ROOT"
+__ENV_REPO_SCRIPTS_DIR="$__ENV_REPO_ROOT/scripts"
+__ENV_REPO_LOGS_DIR="$__ENV_REPO_ROOT/logs"
+__ENV_REPO_BACKUPS_DIR="$__ENV_REPO_ROOT/backups"
+__ENV_REPO_DATA_DIR="$__ENV_REPO_ROOT/data"
+
+__env_apply_repo_defaults() {
+    PROJECT_ROOT="$__ENV_REPO_PROJECT_ROOT"
+    SCRIPTS_DIR="$__ENV_REPO_SCRIPTS_DIR"
+    LOGS_DIR="$__ENV_REPO_LOGS_DIR"
+    BACKUPS_DIR="$__ENV_REPO_BACKUPS_DIR"
+    DATA_DIR="$__ENV_REPO_DATA_DIR"
+}
+
 if [[ -f "$CONFIG_FILE" ]]; then
     source "$CONFIG_FILE"
     echo "Configuración cargada desde $CONFIG_FILE"
 else
     echo "Advertencia: No se encontró $CONFIG_FILE. Usando rutas locales por defecto."
-    PROJECT_ROOT="$__ENV_SCRIPT_DIR"
-    SCRIPTS_DIR="$__ENV_SCRIPT_DIR/scripts"
-    LOGS_DIR="$__ENV_SCRIPT_DIR/logs"
-    BACKUPS_DIR="$__ENV_SCRIPT_DIR/backups"
-    DATA_DIR="$__ENV_SCRIPT_DIR/data"
+    __env_apply_repo_defaults
 fi
 
 # ----------------------------------------------------------------------------- 
@@ -33,11 +44,34 @@ fi
 # ----------------------------------------------------------------------------- 
 if [[ "$(whoami)" != "ubuntu" ]]; then
     echo "Usuario actual: $(whoami). Redefiniendo rutas para entorno local."
-    PROJECT_ROOT="$__ENV_SCRIPT_DIR"
-    SCRIPTS_DIR="$__ENV_SCRIPT_DIR/scripts"
-    LOGS_DIR="$__ENV_SCRIPT_DIR/logs"
-    BACKUPS_DIR="$__ENV_SCRIPT_DIR/backups"
-    DATA_DIR="$__ENV_SCRIPT_DIR/data"
+    __env_apply_repo_defaults
+fi
+
+# -----------------------------------------------------------------------------
+# Validación adicional de rutas críticas
+# -----------------------------------------------------------------------------
+
+__ENV_REQUIRED_SCRIPT_CHECKS=(
+    "setup_ssh.sh"
+    "setup_wireguard.sh"
+)
+
+__env_scripts_dir_needs_reset=0
+
+if [[ -z "${SCRIPTS_DIR:-}" || ! -d "$SCRIPTS_DIR" ]]; then
+    __env_scripts_dir_needs_reset=1
+else
+    for required_script in "${__ENV_REQUIRED_SCRIPT_CHECKS[@]}"; do
+        if [[ ! -f "${SCRIPTS_DIR}/${required_script}" ]]; then
+            __env_scripts_dir_needs_reset=1
+            break
+        fi
+    done
+fi
+
+if [[ "$__env_scripts_dir_needs_reset" -eq 1 ]]; then
+    echo "Advertencia: SCRIPTS_DIR inválido (${SCRIPTS_DIR:-unset}). Usando ${__ENV_REPO_SCRIPTS_DIR}."
+    SCRIPTS_DIR="$__ENV_REPO_SCRIPTS_DIR"
 fi
 
 # ----------------------------------------------------------------------------- 
