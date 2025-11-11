@@ -287,6 +287,37 @@ configure_language_runtimes() {
     return 0
 }
 
+configure_git_proxy() {
+    local proxy_url="${1-socks5h://127.0.0.1:1080}"
+
+    if [ "${GIT_PROXY_SUPPRESS_HEADER:-0}" != "1" ]; then
+        log_section "Configuring Git proxy"
+    fi
+
+    if ! command -v git >/dev/null 2>&1; then
+        log_error "Git is not installed; unable to configure proxy settings"
+        return 1
+    fi
+
+    if [ -z "$proxy_url" ]; then
+        git config --global --unset-all http.proxy >/dev/null 2>&1 || true
+        git config --global --unset-all https.proxy >/dev/null 2>&1 || true
+        git config --global --unset-all http.https://github.com.proxy >/dev/null 2>&1 || true
+        git config --global --unset-all http.https://api.github.com.proxy >/dev/null 2>&1 || true
+        log_info "Cleared Git proxy configuration for GitHub"
+        return 0
+    fi
+
+    git config --global http.proxy "$proxy_url"
+    git config --global https.proxy "$proxy_url"
+    git config --global http.https://github.com.proxy "$proxy_url"
+    git config --global http.https://api.github.com.proxy "$proxy_url"
+
+    log_info "Set Git proxy to $proxy_url for GitHub operations"
+
+    return 0
+}
+
 # Download file with fallback (wget/curl)
 download_file() {
     local url="$1"

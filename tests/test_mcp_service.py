@@ -47,6 +47,11 @@ class TestMcpServiceAssets(unittest.TestCase):
             with self.subTest(variable=variable):
                 self.assertIn(f"{variable}=", content)
 
+    def test_versions_conf_declares_git_proxy(self) -> None:
+        """Git proxy defaults must be documented for the MCP host."""
+        content = self.config_path.read_text(encoding="utf-8")
+        self.assertIn("MCP_GIT_PROXY=", content)
+
     def test_versions_conf_declares_runtime_toolchain(self) -> None:
         """Runtime toolchain definitions must exist for mise provisioning."""
         content = self.config_path.read_text(encoding="utf-8")
@@ -65,6 +70,12 @@ class TestMcpServiceAssets(unittest.TestCase):
         self.assertIn("utils/common.sh", content)
         self.assertIn("create_directory", content)
         self.assertIn("install_packages", content)
+
+    def test_install_script_configures_git_proxy(self) -> None:
+        """Installer should configure git proxy defaults for tunnel usage."""
+        content = self.install_script.read_text(encoding="utf-8")
+        self.assertIn("configure_git_proxy", content)
+        self.assertIn("MCP_GIT_PROXY", content)
 
     def test_install_script_configures_language_runtimes(self) -> None:
         """Installer should delegate runtime provisioning to mise helper."""

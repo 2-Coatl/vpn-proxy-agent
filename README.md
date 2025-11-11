@@ -360,6 +360,7 @@ La ruta `--mcp` ejecuta `install_mcp.sh`, valida el servicio con `watchdog_mcp.s
 
 El instalador también provisiona utilidades de búsqueda como `ripgrep` para que el servidor MCP pueda responder consultas de código
 (`rg "is_truth" -n utils`, por ejemplo) sin intervención manual.
+El instalador también configura `MCP_GIT_PROXY` (por defecto `socks5h://127.0.0.1:1080`) mediante `configure_git_proxy`, asegurando que `git fetch` y otras operaciones HTTPS utilicen el túnel SOCKS5 del proyecto aun detrás de proxys corporativos.
 
 ### 4. Operación diaria
 - Inicia el proceso con `/usr/local/bin/run_mcp.sh` (empaquetado por el instalador).

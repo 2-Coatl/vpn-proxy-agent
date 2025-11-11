@@ -21,7 +21,7 @@ Welcome to the engineering handbook for the VPN Proxy Agent. This site aggregate
 ## MCP Server Playbook
 
 1. **Configura parámetros** – edita `config/versions.conf` y actualiza la sección *MCP Service Configuration* con puertos y rutas adecuadas.
-2. **Instalación directa** – ejecuta `./scripts/install_mcp.sh` para crear el usuario `mcp`, carpetas (`/var/lib/mcp`, `/var/log/mcp`), generar `~/.config/mise/config.toml` y desplegar `systemd/mcp.service`.
+2. **Instalación directa** – ejecuta `./scripts/install_mcp.sh` para crear el usuario `mcp`, carpetas (`/var/lib/mcp`, `/var/log/mcp`), generar `~/.config/mise/config.toml` y desplegar `systemd/mcp.service` y aplicar `MCP_GIT_PROXY` mediante `configure_git_proxy`, de modo que Git use el túnel SOCKS5 (`socks5h://127.0.0.1:1080` por defecto).
 3. **Bootstrap dedicado** – utiliza `./bootstrap.sh --mcp` para orquestar la instalación completa desde el orquestador principal.
 4. **Ejecución** – `./scripts/run_mcp.sh` carga `/etc/mcp/mcp.env`, envía logs a `logs/mcp-server.log` y lanza el binario configurado.
 5. **Supervisión** – valida disponibilidad con `./scripts/watchdog_mcp.sh` o `sudo systemctl status mcp.service`.

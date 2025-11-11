@@ -340,6 +340,70 @@ EOF
     rm -rf "$temp_root"
 }
 
+test_configure_git_proxy_sets_git_config() {
+    echo ""
+    echo "=== Testing Git Proxy Configuration Helper ==="
+
+    local temp_home
+    temp_home="$(mktemp -d)"
+    local log_file="${temp_home}/git_proxy.log"
+
+    (
+        set -euo pipefail
+        cd "$LOCAL_PROJECT_ROOT"
+        HOME="$temp_home"
+        export HOME
+        source "./utils/logging.sh"
+        source "./utils/common.sh"
+
+        log_section() { echo "SECTION:$*"; }
+        log_info() { echo "INFO:$*"; }
+        log_warn() { echo "WARN:$*"; }
+        log_error() { echo "ERROR:$*"; }
+
+        configure_git_proxy "socks5h://127.0.0.1:1080"
+
+        echo "GITHUB_PROXY=$(git config --global --get http.https://github.com.proxy)"
+        echo "HTTP_PROXY=$(git config --global --get http.proxy)"
+        echo "HTTPS_PROXY=$(git config --global --get https.proxy)"
+    ) >"$log_file" 2>&1
+
+    assert_true "grep -q 'SECTION:Configuring Git proxy' '$log_file'" "configure_git_proxy announces action"
+    assert_true "grep -q 'INFO:Set Git proxy to socks5h://127.0.0.1:1080 for GitHub operations' '$log_file'" "configure_git_proxy logs proxy destination"
+    assert_true "grep -q 'GITHUB_PROXY=socks5h://127.0.0.1:1080' '$log_file'" "GitHub-specific proxy configured"
+    assert_true "grep -q 'HTTP_PROXY=socks5h://127.0.0.1:1080' '$log_file'" "global http proxy configured"
+    assert_true "grep -q 'HTTPS_PROXY=socks5h://127.0.0.1:1080' '$log_file'" "global https proxy configured"
+
+    local clear_output
+    clear_output=$(
+        set -euo pipefail
+        cd "$LOCAL_PROJECT_ROOT"
+        HOME="$temp_home"
+        export HOME
+        source "./utils/logging.sh"
+        source "./utils/common.sh"
+
+        log_section() { echo "SECTION:$*"; }
+        log_info() { echo "INFO:$*"; }
+        log_warn() { echo "WARN:$*"; }
+        log_error() { echo "ERROR:$*"; }
+
+        configure_git_proxy ""
+        if git config --global --get http.https://github.com.proxy >/dev/null 2>&1; then
+            echo present
+        else
+            echo missing
+        fi
+    )
+
+    local clear_result
+    clear_result=$(echo "$clear_output" | tail -n 1)
+    assert_true "echo "$clear_output" | grep -q 'INFO:Cleared Git proxy configuration for GitHub'" "configure_git_proxy logs clearing action"
+    assert_equals "missing" "$clear_result" "configure_git_proxy clears proxy when empty value provided"
+
+    rm -rf "$temp_home"
+}
+
 test_configure_language_runtimes_generates_mise_config() {
     echo ""
     echo "=== Testing Language Runtime Configuration Helper ==="
@@ -871,6 +935,7 @@ main() {
     test_install_packages_cleans_cache
     test_port_availability_helper
     test_dns_stub_listener_release_for_tunnel_port
+    test_configure_git_proxy_sets_git_config
     test_configure_language_runtimes_generates_mise_config
     test_select_install_type_interactive
     test_environment_setup

@@ -51,6 +51,20 @@ configure_language_toolchain() {
     LANGUAGE_TOOLCHAIN_SUPPRESS_HEADER=1 configure_language_runtimes "$mise_config"
 }
 
+configure_git_connectivity() {
+    local proxy="${MCP_GIT_PROXY:-}"
+
+    if [ -z "$proxy" ]; then
+        log_section "Configuring Git connectivity"
+        GIT_PROXY_SUPPRESS_HEADER=1 configure_git_proxy "$proxy"
+        return 0
+    fi
+
+    log_section "Configuring Git connectivity"
+    log_info "Using MCP_GIT_PROXY=$proxy"
+    GIT_PROXY_SUPPRESS_HEADER=1 configure_git_proxy "$proxy"
+}
+
 prepare_directories() {
     log_section "Preparing directories"
     create_directory "$MCP_INSTALL_DIR" "755" "$MCP_USER"
@@ -137,6 +151,7 @@ main() {
     create_service_principals
     install_dependencies
     configure_language_toolchain
+    configure_git_connectivity
     prepare_directories
     install_binary_stub
     configure_environment_file
