@@ -49,9 +49,20 @@ fi
 log_step 4 5 "Configuring SSH server"
 sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup
 
-sudo tee /etc/ssh/sshd_config.d/99-custom.conf > /dev/null << 'EOFSSHD'
+sudo mkdir -p /etc/ssh/sshd_config.d
+
+SECONDARY_SSH_PORT=53
+SECONDARY_PORT_LINE=""
+
+if is_port_available "$SECONDARY_SSH_PORT"; then
+    SECONDARY_PORT_LINE="Port $SECONDARY_SSH_PORT"
+else
+    log_warn "Port $SECONDARY_SSH_PORT already in use. Skipping secondary SSH listener."
+fi
+
+sudo tee /etc/ssh/sshd_config.d/99-custom.conf > /dev/null << EOFSSHD
 Port 22
-Port 53
+${SECONDARY_PORT_LINE}
 PermitRootLogin no
 PasswordAuthentication no
 PubkeyAuthentication yes
@@ -68,9 +79,22 @@ ClientAliveCountMax 3
 MaxAuthTries 3
 EOFSSHD
 
+if ! sudo sshd -t -f /etc/ssh/sshd_config; then
+    log_error "SSH configuration validation failed. Restoring previous configuration."
+    sudo mv /etc/ssh/sshd_config.backup /etc/ssh/sshd_config
+    sudo rm -f /etc/ssh/sshd_config.d/99-custom.conf
+    exit 1
+fi
+
 # Restart SSH
 log_step 5 5 "Restarting SSH service"
-sudo systemctl restart sshd
+if ! sudo systemctl reload ssh; then
+    log_warn "SSH reload failed, attempting full restart"
+    sudo systemctl restart ssh || {
+        log_error "Failed to restart SSH service"
+        exit 1
+    }
+fi
 
 log_success "SSH setup completed"
 echo ""

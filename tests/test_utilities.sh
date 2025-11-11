@@ -172,10 +172,10 @@ test_validation() {
 test_common() {
     echo ""
     echo "=== Testing Common Functions ==="
-    
+
     # Test OS detection
     assert_true "detect_os_version" "OS detection"
-    
+
     # Test string utilities
     local test_string="  test  "
     local trimmed=$(trim "$test_string")
@@ -197,10 +197,95 @@ test_common() {
     # Test temp directory creation
     local temp_dir=$(create_temp_dir "test")
     assert_true "[ -d '$temp_dir' ]" "create_temp_dir function"
-    
+
     # Test cleanup
     assert_true "cleanup_temp_dir '$temp_dir'" "cleanup_temp_dir function"
     assert_false "[ -d '$temp_dir' ]" "temp directory cleaned up"
+}
+
+test_install_packages_cleans_cache() {
+    echo ""
+    echo "=== Testing install_packages Cache Cleanup ==="
+
+    local output
+    output=$(
+        set -uo pipefail
+        cd "$LOCAL_PROJECT_ROOT"
+        source "./utils/logging.sh"
+        source "./utils/common.sh"
+
+        log_info() { :; }
+        log_success() { :; }
+        log_error() { echo "[ERROR] $*" >&2; }
+        detect_os_version() { OS_ID=ubuntu; OS_VERSION=22.04; OS_CODENAME=jammy; OS_PRETTY_NAME="Ubuntu 22.04.6 LTS"; return 0; }
+        is_debian_based() { return 0; }
+        is_redhat_based() { return 1; }
+        sudo() { echo "sudo $*"; return 0; }
+
+        install_packages curl
+    )
+
+    assert_true "echo \"$output\" | grep -F 'sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl' >/dev/null" "install_packages triggers apt install"
+    assert_true "echo \"$output\" | grep -F 'sudo apt-get clean' >/dev/null" "install_packages runs apt-get clean"
+}
+
+test_port_availability_helper() {
+    echo ""
+    echo "=== Testing Port Availability Helper ==="
+
+    local busy_result
+    busy_result=$(
+        set -uo pipefail
+        cd "$LOCAL_PROJECT_ROOT"
+        source "./utils/logging.sh"
+        source "./utils/validation.sh"
+
+        ss() {
+            cat <<'EOF'
+State  Recv-Q Send-Q Local Address:Port Peer Address:Port Process
+LISTEN 0      128    0.0.0.0:53        0.0.0.0:*        users:("named",pid=123,fd=3)
+EOF
+        }
+
+        log_warn() { :; }
+        log_error() { :; }
+
+        if is_port_available 53; then
+            echo "available"
+        else
+            echo "in_use"
+        fi
+    )
+
+    busy_result=$(echo "$busy_result" | tail -n 1)
+
+    assert_equals "in_use" "$busy_result" "is_port_available detects in-use port"
+
+    local free_result
+    free_result=$(
+        set -uo pipefail
+        cd "$LOCAL_PROJECT_ROOT"
+        source "./utils/logging.sh"
+        source "./utils/validation.sh"
+
+        ss() {
+            cat <<'EOF'
+EOF
+        }
+
+        log_warn() { :; }
+        log_error() { :; }
+
+        if is_port_available 2222; then
+            echo "available"
+        else
+            echo "in_use"
+        fi
+    )
+
+    free_result=$(echo "$free_result" | tail -n 1)
+
+    assert_equals "available" "$free_result" "is_port_available reports available port"
 }
 
 # Ensure bootstrap selection works without predefined arguments
@@ -689,6 +774,8 @@ main() {
     test_logging_preserves_local_paths
     test_validation
     test_common
+    test_install_packages_cleans_cache
+    test_port_availability_helper
     test_select_install_type_interactive
     test_environment_setup
     test_env_fallback_for_non_ubuntu_users

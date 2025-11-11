@@ -112,8 +112,27 @@ class TestScripts(unittest.TestCase):
         if scripts_dir.exists():
             for script in scripts_dir.glob('*.sh'):
                 result = subprocess.run(['bash', '-n', str(script)], capture_output=True)
-                self.assertEqual(result.returncode, 0, 
+                self.assertEqual(result.returncode, 0,
                                f"Syntax error in {script.name}: {result.stderr.decode()}")
+
+    def test_setup_ssh_validates_configuration(self):
+        """Ensure setup_ssh.sh validates SSH configuration before restart"""
+        script = PROJECT_ROOT / 'scripts' / 'setup_ssh.sh'
+        with open(script, 'r', encoding='utf-8') as handle:
+            content = handle.read()
+
+        self.assertIn('sshd -t', content, "setup_ssh.sh must validate configuration with sshd -t")
+
+    def test_setup_ssh_checks_port_availability(self):
+        """Ensure setup_ssh.sh checks for port availability before enabling extra listener"""
+        script = PROJECT_ROOT / 'scripts' / 'setup_ssh.sh'
+        with open(script, 'r', encoding='utf-8') as handle:
+            content = handle.read()
+
+        self.assertIn('is_port_available', content,
+                      "setup_ssh.sh must rely on is_port_available before adding an extra port")
+        self.assertIn('Skipping secondary SSH listener', content,
+                      "setup_ssh.sh should warn when the secondary port is unavailable")
 
 
 class TestVagrantfile(unittest.TestCase):
