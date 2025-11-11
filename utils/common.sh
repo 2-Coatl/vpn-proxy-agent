@@ -97,6 +97,12 @@ install_packages() {
             log_error "Failed to install packages"
             return 1
         }
+        sudo apt-get clean -qq || {
+            log_warn "Failed to clean apt cache"
+        }
+        sudo rm -rf /var/lib/apt/lists/* || {
+            log_warn "Failed to remove cached apt lists"
+        }
     elif is_redhat_based; then
         sudo yum install -y -q "${packages[@]}" || {
             log_error "Failed to install packages"
@@ -452,13 +458,171 @@ enable_service() {
 # Restart service
 restart_service() {
     local service="$1"
-    
+
     sudo systemctl restart "$service" || {
         log_error "Failed to restart service: $service"
         return 1
     }
-    
+
     log_success "Service restarted: $service"
+    return 0
+}
+
+# Ensure systemd-resolved frees the DNS stub listener so SSH can bind to port 53
+ensure_dns_stub_listener_disabled() {
+    local port="${1:-53}"
+    local resolved_conf="${SYSTEMD_RESOLVED_CONF_PATH:-/etc/systemd/resolved.conf}"
+    local resolv_conf_path="${DNS_RESOLV_CONF_PATH:-/etc/resolv.conf}"
+    local fallback_resolv="${SYSTEMD_RESOLVED_FALLBACK_PATH:-/run/systemd/resolve/resolv.conf}"
+    local sudo_prefix=""
+
+    if command -v sudo >/dev/null 2>&1; then
+        sudo_prefix="sudo"
+    fi
+
+    if is_port_available "$port"; then
+        log_debug "Port $port already available; no DNS stub listener adjustments required"
+        return 0
+    fi
+
+    if ! command -v systemctl >/dev/null 2>&1; then
+        log_warn "systemctl is unavailable; cannot adjust systemd-resolved for port $port"
+        return 1
+    fi
+
+    if ! systemctl is-active --quiet systemd-resolved; then
+        log_debug "systemd-resolved is not active; skipping DNS stub listener adjustments"
+        return 0
+    fi
+
+    if [ ! -f "$resolved_conf" ]; then
+        log_warn "systemd-resolved configuration not found at $resolved_conf"
+        return 1
+    fi
+
+    if ! command -v python3 >/dev/null 2>&1; then
+        log_warn "python3 is required to adjust $resolved_conf; skipping DNS stub listener changes"
+        return 1
+    fi
+
+    log_info "Disabling systemd-resolved stub listener to free port $port"
+
+    local temp_copy
+    temp_copy="$(mktemp)"
+
+    if ! cp "$resolved_conf" "$temp_copy" 2>/dev/null; then
+        if [ -n "$sudo_prefix" ]; then
+            $sudo_prefix cp "$resolved_conf" "$temp_copy" || {
+                log_error "Failed to copy $resolved_conf for modification"
+                rm -f "$temp_copy"
+                return 1
+            }
+        else
+            log_error "Failed to copy $resolved_conf for modification"
+            rm -f "$temp_copy"
+            return 1
+        fi
+    fi
+
+    if ! python3 - "$temp_copy" <<'PY'; then
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+content = path.read_text().splitlines()
+added = False
+resolve_index = None
+
+for idx, line in enumerate(content):
+    if line.strip().lower().startswith('dnsstublistener'):
+        content[idx] = 'DNSStubListener=no'
+        added = True
+        break
+
+for idx, line in enumerate(content):
+    if line.strip() == '[Resolve]':
+        resolve_index = idx
+        break
+
+if not added:
+    if resolve_index is not None:
+        content.insert(resolve_index + 1, 'DNSStubListener=no')
+        added = True
+
+if not added:
+    content.extend(['[Resolve]', 'DNSStubListener=no'])
+
+path.write_text('\n'.join(content) + '\n')
+PY
+        log_error "Failed to update DNSStubListener configuration in $resolved_conf"
+        rm -f "$temp_copy"
+        return 1
+    fi
+
+    if ! cp "$temp_copy" "$resolved_conf" 2>/dev/null; then
+        if [ -n "$sudo_prefix" ]; then
+            $sudo_prefix cp "$temp_copy" "$resolved_conf" || {
+                log_error "Failed to persist DNS stub listener changes to $resolved_conf"
+                rm -f "$temp_copy"
+                return 1
+            }
+        else
+            log_error "Failed to persist DNS stub listener changes to $resolved_conf"
+            rm -f "$temp_copy"
+            return 1
+        fi
+    fi
+
+    rm -f "$temp_copy"
+
+    if [ -n "$fallback_resolv" ] && [ -f "$fallback_resolv" ]; then
+        local needs_link=1
+        if [ -L "$resolv_conf_path" ]; then
+            local current_target
+            current_target="$(readlink "$resolv_conf_path")"
+            if [ "$current_target" = "$fallback_resolv" ]; then
+                needs_link=0
+            fi
+        fi
+
+        if [ $needs_link -eq 1 ]; then
+            log_info "Pointing $resolv_conf_path to $fallback_resolv for DNS resolution"
+            if ! ln -sf "$fallback_resolv" "$resolv_conf_path" 2>/dev/null; then
+                if [ -n "$sudo_prefix" ]; then
+                    $sudo_prefix ln -sf "$fallback_resolv" "$resolv_conf_path" || {
+                        log_warn "Failed to link $resolv_conf_path to $fallback_resolv"
+                    }
+                else
+                    log_warn "Failed to link $resolv_conf_path to $fallback_resolv"
+                fi
+            fi
+        fi
+    else
+        log_warn "Fallback resolver file $fallback_resolv not found; writing placeholder resolv.conf"
+        if ! printf 'nameserver 1.1.1.1\n' >"$resolv_conf_path" 2>/dev/null; then
+            if [ -n "$sudo_prefix" ]; then
+                printf 'nameserver 1.1.1.1\n' | $sudo_prefix tee "$resolv_conf_path" >/dev/null || {
+                    log_warn "Failed to write placeholder resolv.conf at $resolv_conf_path"
+                }
+            else
+                log_warn "Failed to write placeholder resolv.conf at $resolv_conf_path"
+            fi
+        fi
+    fi
+
+    if [ -n "$sudo_prefix" ]; then
+        $sudo_prefix systemctl restart systemd-resolved || {
+            log_error "Failed to restart systemd-resolved after disabling stub listener"
+            return 1
+        }
+    else
+        systemctl restart systemd-resolved || {
+            log_error "Failed to restart systemd-resolved after disabling stub listener"
+            return 1
+        }
+    fi
+
+    log_success "systemd-resolved stub listener disabled for port $port"
     return 0
 }
 
