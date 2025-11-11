@@ -97,6 +97,12 @@ install_packages() {
             log_error "Failed to install packages"
             return 1
         }
+        sudo apt-get clean -qq || {
+            log_warn "Failed to clean apt cache"
+        }
+        sudo rm -rf /var/lib/apt/lists/* || {
+            log_warn "Failed to remove cached apt lists"
+        }
     elif is_redhat_based; then
         sudo yum install -y -q "${packages[@]}" || {
             log_error "Failed to install packages"

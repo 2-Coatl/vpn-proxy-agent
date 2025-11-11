@@ -112,8 +112,27 @@ class TestScripts(unittest.TestCase):
         if scripts_dir.exists():
             for script in scripts_dir.glob('*.sh'):
                 result = subprocess.run(['bash', '-n', str(script)], capture_output=True)
-                self.assertEqual(result.returncode, 0, 
+                self.assertEqual(result.returncode, 0,
                                f"Syntax error in {script.name}: {result.stderr.decode()}")
+
+    def test_setup_ssh_validates_configuration(self):
+        """Ensure setup_ssh.sh validates SSH configuration before restart"""
+        script = PROJECT_ROOT / 'scripts' / 'setup_ssh.sh'
+        with open(script, 'r', encoding='utf-8') as handle:
+            content = handle.read()
+
+        self.assertIn('sshd -t', content, "setup_ssh.sh must validate configuration with sshd -t")
+
+    def test_setup_ssh_checks_port_availability(self):
+        """Ensure setup_ssh.sh checks for port availability before enabling extra listener"""
+        script = PROJECT_ROOT / 'scripts' / 'setup_ssh.sh'
+        with open(script, 'r', encoding='utf-8') as handle:
+            content = handle.read()
+
+        self.assertIn('is_port_available', content,
+                      "setup_ssh.sh must rely on is_port_available before adding an extra port")
+        self.assertIn('Skipping secondary SSH listener', content,
+                      "setup_ssh.sh should warn when the secondary port is unavailable")
 
 
 class TestVagrantfile(unittest.TestCase):
@@ -129,12 +148,21 @@ class TestVagrantfile(unittest.TestCase):
         vagrantfile = PROJECT_ROOT / 'Vagrantfile'
         # Skip if ruby not installed
         try:
-            result = subprocess.run(['ruby', '-c', str(vagrantfile)], 
+            result = subprocess.run(['ruby', '-c', str(vagrantfile)],
                                   capture_output=True, timeout=5)
             if result.returncode == 0:
                 self.assertEqual(result.returncode, 0)
         except (FileNotFoundError, subprocess.TimeoutExpired):
             self.skipTest("Ruby not available for syntax check")
+
+    def test_vagrantfile_synced_folder_allows_execution(self):
+        """Ensure synced folder mount options keep execute permissions"""
+        vagrantfile = PROJECT_ROOT / 'Vagrantfile'
+        with open(vagrantfile, 'r', encoding='utf-8') as handle:
+            content = handle.read()
+
+        self.assertIn('"fmode=775"', content,
+                      "Synced folder must allow execute permissions via fmode=775")
 
 
 class TestDocumentation(unittest.TestCase):
