@@ -134,6 +134,17 @@ class TestScripts(unittest.TestCase):
         self.assertIn('Skipping secondary SSH listener', content,
                       "setup_ssh.sh should warn when the secondary port is unavailable")
 
+    def test_setup_ssh_respects_existing_sftp_subsystem(self):
+        """Ensure setup_ssh.sh avoids duplicating the default SFTP subsystem"""
+        script = PROJECT_ROOT / 'scripts' / 'setup_ssh.sh'
+        with open(script, 'r', encoding='utf-8') as handle:
+            content = handle.read()
+
+        self.assertIn(
+            'Existing SFTP subsystem configuration detected; not adding duplicate entry',
+            content,
+            "setup_ssh.sh should gracefully reuse the existing SFTP subsystem configuration",
+        )
 
 class TestVagrantfile(unittest.TestCase):
     """Test Vagrantfile"""
