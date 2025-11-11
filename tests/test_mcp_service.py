@@ -47,6 +47,19 @@ class TestMcpServiceAssets(unittest.TestCase):
             with self.subTest(variable=variable):
                 self.assertIn(f"{variable}=", content)
 
+    def test_versions_conf_declares_git_proxy(self) -> None:
+        """Git proxy defaults must be documented for the MCP host."""
+        content = self.config_path.read_text(encoding="utf-8")
+        self.assertIn("MCP_GIT_PROXY=", content)
+
+    def test_versions_conf_declares_runtime_toolchain(self) -> None:
+        """Runtime toolchain definitions must exist for mise provisioning."""
+        content = self.config_path.read_text(encoding="utf-8")
+        self.assertIn("MCP_RUNTIME_TOOLCHAIN=(", content)
+        for token in ("python", "node", "ruby", "rust", "go", "swift", "php"):
+            with self.subTest(token=token):
+                self.assertIn(token, content)
+
     def test_install_script_exists_and_is_executable(self) -> None:
         """Installation script should source helpers and enforce strict modes."""
         self.assertTrue(self.install_script.exists(), "install_mcp.sh must exist")
@@ -57,6 +70,24 @@ class TestMcpServiceAssets(unittest.TestCase):
         self.assertIn("utils/common.sh", content)
         self.assertIn("create_directory", content)
         self.assertIn("install_packages", content)
+
+    def test_install_script_configures_git_proxy(self) -> None:
+        """Installer should configure git proxy defaults for tunnel usage."""
+        content = self.install_script.read_text(encoding="utf-8")
+        self.assertIn("configure_git_proxy", content)
+        self.assertIn("MCP_GIT_PROXY", content)
+
+    def test_install_script_configures_language_runtimes(self) -> None:
+        """Installer should delegate runtime provisioning to mise helper."""
+        content = self.install_script.read_text(encoding="utf-8")
+        self.assertIn("configure_language_runtimes", content)
+        self.assertIn("Configuring language runtimes", content)
+        self.assertIn(".config/mise/config.toml", content)
+
+    def test_install_script_installs_code_search_tooling(self) -> None:
+        """The MCP host must provide ripgrep for repository search operations."""
+        content = self.install_script.read_text(encoding="utf-8")
+        self.assertIn("ripgrep", content)
 
     def test_run_script_wraps_service_binary(self) -> None:
         """Runtime wrapper should load environment, log output and exec the binary."""

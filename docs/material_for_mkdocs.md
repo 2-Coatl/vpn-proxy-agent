@@ -13,7 +13,7 @@ Este tutorial paso a paso explica cómo crear, personalizar y publicar un portal
 7. [Bloques de código avanzados](#bloques-de-código-avanzados)
 8. [Pestañas de contenido](#pestañas-de-contenido)
 9. [Admoniciones (callouts)](#admoniciones-callouts)
-10. [Diagramas con Mermaid](#diagramas-con-mermaid)
+10. [Diagramas con PlantUML](#diagramas-con-plantuml)
 11. [Pie de página y enlaces sociales](#pie-de-página-y-enlaces-sociales)
 12. [Publicación con GitHub Pages](#publicación-con-github-pages)
 
@@ -215,25 +215,31 @@ Asegúrate de mantener habilitada la extensión `pymdownx.tabbed`.
    ```
 3. Tipos disponibles: `note`, `info`, `abstract`, `tip`, `success`, `warning`, `danger`, entre otros.
 
-## Diagramas con Mermaid
+## Diagramas con PlantUML
 
-1. Extiende la configuración de `pymdownx.superfences` para registrar Mermaid:
+1. Habilita PlantUML mediante `pymdownx.plantuml` y registra la valla personalizada:
    ```yaml
    markdown_extensions:
+     - pymdownx.plantuml:
+         format: svg_inline
+         server: https://www.plantuml.com/plantuml
      - pymdownx.superfences:
          custom_fences:
-           - name: mermaid
-             class: mermaid
+           - name: plantuml
+             class: plantuml
              format: !!python/name:pymdownx.superfences.fence_code_format
    ```
-2. Inserta diagramas directamente en Markdown:
+2. Inserta diagramas usando bloques `plantuml`:
    ```markdown
-   ```mermaid
-   flowchart TD
-       Start --> Stop
+   ```plantuml
+   @startuml
+   start
+   :Hello PlantUML!;
+   stop
+   @enduml
    ```
    ```
-3. Mermaid soporta diagramas de flujo, secuencia, clases, estados y más.
+3. PlantUML permite diagramas de actividad, secuencia, clases, componentes, despliegue y más empleando la misma sintaxis utilizada en las decisiones técnicas del proyecto.
 
 ## Pie de página y enlaces sociales
 

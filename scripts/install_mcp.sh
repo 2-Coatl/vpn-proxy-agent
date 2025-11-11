@@ -41,8 +41,28 @@ create_service_principals() {
 
 install_dependencies() {
     log_section "Installing dependencies"
-    local packages=("curl" "jq" "netcat" "python3")
+    local packages=("curl" "jq" "netcat" "python3" "ripgrep")
     install_packages "${packages[@]}"
+}
+
+configure_language_toolchain() {
+    local mise_config="${HOME}/.config/mise/config.toml"
+    log_section "Configuring language runtimes"
+    LANGUAGE_TOOLCHAIN_SUPPRESS_HEADER=1 configure_language_runtimes "$mise_config"
+}
+
+configure_git_connectivity() {
+    local proxy="${MCP_GIT_PROXY:-}"
+
+    if [ -z "$proxy" ]; then
+        log_section "Configuring Git connectivity"
+        GIT_PROXY_SUPPRESS_HEADER=1 configure_git_proxy "$proxy"
+        return 0
+    fi
+
+    log_section "Configuring Git connectivity"
+    log_info "Using MCP_GIT_PROXY=$proxy"
+    GIT_PROXY_SUPPRESS_HEADER=1 configure_git_proxy "$proxy"
 }
 
 prepare_directories() {
@@ -130,6 +150,8 @@ deploy_systemd_unit() {
 main() {
     create_service_principals
     install_dependencies
+    configure_language_toolchain
+    configure_git_connectivity
     prepare_directories
     install_binary_stub
     configure_environment_file

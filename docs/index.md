@@ -15,13 +15,13 @@ Welcome to the engineering handbook for the VPN Proxy Agent. This site aggregate
    bash tests/test_utilities.sh
    ```
 4. **Provision the Vagrant VM (optional)** – `vagrant up` now runs `bootstrap.sh` automatically in automation mode. Inspect progress with `vagrant up --debug` or SSH in afterwards to rerun `BOOTSTRAP_AUTO=1 ./bootstrap.sh` if you need to reset the guest state.
-5. **Review post-provisioning checks** – after Vagrant finishes, connect with `vagrant ssh`, read `~/logs/bootstrap_latest.log`, and run `bash tests/test_bootstrap.sh` to confirm the unattended helpers still pass.
+5. **Review post-provisioning checks** – after Vagrant finishes, connect with `vagrant ssh`, read `~/logs/bootstrap_latest.log`, and run `bash tests/test_bootstrap.sh` to confirm the unattended helpers still pass. For CI smoke tests, execute `BOOTSTRAP_AUTO=1 BOOTSTRAP_DRY_RUN=1 ./bootstrap.sh --standard` to exercise the non-interactive flow without mutating the VM.
 6. **Preview the documentation** – install MkDocs (`pip install mkdocs`) and run `mkdocs serve --config-file docs/mkdocs.yml` to review this site locally with live reloading.
 
 ## MCP Server Playbook
 
 1. **Configura parámetros** – edita `config/versions.conf` y actualiza la sección *MCP Service Configuration* con puertos y rutas adecuadas.
-2. **Instalación directa** – ejecuta `./scripts/install_mcp.sh` para crear el usuario `mcp`, carpetas (`/var/lib/mcp`, `/var/log/mcp`) y desplegar `systemd/mcp.service`.
+2. **Instalación directa** – ejecuta `./scripts/install_mcp.sh` para crear el usuario `mcp`, carpetas (`/var/lib/mcp`, `/var/log/mcp`), generar `~/.config/mise/config.toml` y desplegar `systemd/mcp.service` y aplicar `MCP_GIT_PROXY` mediante `configure_git_proxy`, de modo que Git use el túnel SOCKS5 (`socks5h://127.0.0.1:1080` por defecto).
 3. **Bootstrap dedicado** – utiliza `./bootstrap.sh --mcp` para orquestar la instalación completa desde el orquestador principal.
 4. **Ejecución** – `./scripts/run_mcp.sh` carga `/etc/mcp/mcp.env`, envía logs a `logs/mcp-server.log` y lanza el binario configurado.
 5. **Supervisión** – valida disponibilidad con `./scripts/watchdog_mcp.sh` o `sudo systemctl status mcp.service`.

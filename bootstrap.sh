@@ -85,6 +85,36 @@ auto_mode_enabled() {
     return 1
 }
 
+# Determine if a flag-like string represents a truthy value
+is_truthy_flag() {
+    local flag="${1:-}"
+
+    if [[ -z "$flag" ]]; then
+        return 1
+    fi
+
+    flag="${flag,,}"
+    [[ "$flag" =~ ^(1|true|yes|y)$ ]]
+}
+
+# Determine if the bootstrap should operate in dry-run mode
+dry_run_enabled() {
+    if is_truthy_flag "${BOOTSTRAP_DRY_RUN:-}"; then
+        return 0
+    fi
+
+    if is_truthy_flag "${DRY_RUN:-}"; then
+        return 0
+    fi
+
+    return 1
+}
+
+# Emit a standardized dry-run log entry
+log_dry_run_action() {
+    log_info "[DRY RUN] $*"
+}
+
 # Check whether we should auto-confirm prompts
 should_auto_confirm() {
     if auto_mode_enabled; then
@@ -241,20 +271,29 @@ check_requirements() {
     # Check not running as root
     log_step 2 "Checking user privileges"
     if [ "$EUID" -eq 0 ]; then
-        log_error "Do not run this script as root. Run as regular user with sudo privileges."
-        return 1
+        if dry_run_enabled; then
+            log_dry_run_action "Would verify non-root execution"
+        else
+            log_error "Do not run this script as root. Run as regular user with sudo privileges."
+            return 1
+        fi
     fi
-    
+
     # Check sudo access
     log_step 3 "Validating sudo access"
-    if ! sudo -n true 2>/dev/null; then
-        log_info "Sudo access required. You may be prompted for password."
-        sudo -v || {
-            log_error "Sudo access is required for installation"
-            return 1
-        }
+    if dry_run_enabled; then
+        local current_user="${USER:-$(whoami)}"
+        log_dry_run_action "Would validate sudo access for user $current_user"
+    else
+        if ! sudo -n true 2>/dev/null; then
+            log_info "Sudo access required. You may be prompted for password."
+            sudo -v || {
+                log_error "Sudo access is required for installation"
+                return 1
+            }
+        fi
     fi
-    
+
     # Check disk space
     log_step 4 "Checking disk space"
     if ! validate_disk_space "/" 5000; then
@@ -321,7 +360,8 @@ show_install_summary() {
     log_summary_start
     log_summary_item "Installation Type" "$(to_uppercase $install_type)"
     log_summary_item "OS Version" "$OS_PRETTY_NAME"
-    log_summary_item "User" "$USER"
+    local summary_user="${USER:-$(whoami)}"
+    log_summary_item "User" "$summary_user"
     log_summary_item "Working Directory" "$SCRIPT_DIR"
     log_summary_item "Log File" "$LOG_FILE"
     
@@ -351,14 +391,22 @@ prepare_environment() {
     
     # Create directories
     log_step 1 "Creating directory structure"
-    create_directory "$LOGS_DIR" || return 1
-    create_directory "$BACKUPS_DIR" || return 1
-    create_directory "$SCRIPTS_DIR" || return 1
-    
+    if dry_run_enabled; then
+        log_dry_run_action "Would ensure directories exist: $LOGS_DIR $BACKUPS_DIR $SCRIPTS_DIR"
+    else
+        create_directory "$LOGS_DIR" || return 1
+        create_directory "$BACKUPS_DIR" || return 1
+        create_directory "$SCRIPTS_DIR" || return 1
+    fi
+
     # Update package lists
     log_step 2 "Updating package lists"
-    update_package_lists || return 1
-    
+    if dry_run_enabled; then
+        log_dry_run_action "Would update package lists"
+    else
+        update_package_lists || return 1
+    fi
+
     # Install basic dependencies
     log_step 3 "Installing basic dependencies"
     local packages=(
@@ -374,7 +422,11 @@ prepare_environment() {
         "gnupg"
         "lsb-release"
     )
-    install_packages "${packages[@]}" || return 1
+    if dry_run_enabled; then
+        log_dry_run_action "Would install packages: ${packages[*]}"
+    else
+        install_packages "${packages[@]}" || return 1
+    fi
     
     end_timer "prepare" "Environment preparation"
     
@@ -391,7 +443,11 @@ install_ssh() {
     
     # Install OpenSSH server
     log_step 1 "Installing OpenSSH server"
-    install_packages openssh-server || return 1
+    if dry_run_enabled; then
+        log_dry_run_action "Would install package: openssh-server"
+    else
+        install_packages openssh-server || return 1
+    fi
     
     # Configure SSH
     log_step 2 "Configuring SSH"
@@ -400,15 +456,23 @@ install_ssh() {
         return 1
     fi
 
-    log_info "Executing SSH setup helper"
-    if ! bash "${SCRIPTS_DIR}/setup_ssh.sh"; then
-        log_error "SSH configuration script failed"
-        return 1
+    if dry_run_enabled; then
+        log_dry_run_action "Would execute ${SCRIPTS_DIR}/setup_ssh.sh"
+    else
+        log_info "Executing SSH setup helper"
+        if ! bash "${SCRIPTS_DIR}/setup_ssh.sh"; then
+            log_error "SSH configuration script failed"
+            return 1
+        fi
     fi
     
     # Enable SSH service
     log_step 3 "Enabling SSH service"
-    enable_service ssh || return 1
+    if dry_run_enabled; then
+        log_dry_run_action "Would enable and start ssh service"
+    else
+        enable_service ssh || return 1
+    fi
     
     end_timer "ssh" "SSH installation"
     
@@ -433,10 +497,22 @@ install_docker() {
     # Install Docker
     log_step 1 "Installing Docker Engine"
     log_info "Downloading Docker install script..."
-    
+
+    if dry_run_enabled; then
+        log_dry_run_action "Would download Docker installer from $DOCKER_INSTALL_URL"
+        log_dry_run_action "Would execute Docker installer script"
+        local docker_user="${USER:-$(whoami)}"
+        log_dry_run_action "Would add $docker_user to docker group"
+        log_dry_run_action "Would install docker-compose-plugin"
+        log_dry_run_action "Would enable docker service"
+        log_success "Docker installed successfully"
+        echo ""
+        return 0
+    fi
+
     local temp_dir=$(create_temp_dir)
     register_cleanup_trap "$temp_dir"
-    
+
     download_file "$DOCKER_INSTALL_URL" "${temp_dir}/get-docker.sh" "Docker installer" || return 1
     
     log_info "Running Docker installer..."
@@ -473,21 +549,35 @@ install_security() {
     
     # Install UFW
     log_step 1 "Installing UFW firewall"
-    install_packages ufw || return 1
+    if dry_run_enabled; then
+        log_dry_run_action "Would install package: ufw"
+    else
+        install_packages ufw || return 1
+    fi
     
     # Configure UFW
     log_step 2 "Configuring UFW"
-    sudo ufw default deny incoming || return 1
-    sudo ufw default allow outgoing || return 1
-    sudo ufw allow ssh || return 1
-    
-    log_info "Enabling UFW..."
-    echo "y" | sudo ufw enable || log_warn "Failed to enable UFW"
+    if dry_run_enabled; then
+        log_dry_run_action "Would apply UFW default rules and allow SSH"
+        log_dry_run_action "Would enable UFW firewall"
+    else
+        sudo ufw default deny incoming || return 1
+        sudo ufw default allow outgoing || return 1
+        sudo ufw allow ssh || return 1
+
+        log_info "Enabling UFW..."
+        echo "y" | sudo ufw enable || log_warn "Failed to enable UFW"
+    fi
     
     # Install Fail2Ban
     log_step 3 "Installing Fail2Ban"
-    install_packages fail2ban || return 1
-    enable_service fail2ban || log_warn "Failed to enable Fail2Ban"
+    if dry_run_enabled; then
+        log_dry_run_action "Would install package: fail2ban"
+        log_dry_run_action "Would enable fail2ban service"
+    else
+        install_packages fail2ban || return 1
+        enable_service fail2ban || log_warn "Failed to enable Fail2Ban"
+    fi
     
     end_timer "security" "Security installation"
     
@@ -504,16 +594,21 @@ install_monitoring() {
 
     # Install basic monitoring tools
     log_step 1 "Installing monitoring tools"
-    install_packages htop iotop nethogs ncdu || return 1
-    
-    # Install Netdata (optional)
-    if log_confirm "Install Netdata (web-based monitoring)?"; then
-        log_step 2 "Installing Netdata"
-        log_info "This may take several minutes..."
-        
-        bash <(curl -Ss "$NETDATA_INSTALL_URL") --dont-wait --disable-telemetry || {
-            log_warn "Netdata installation failed (non-critical)"
-        }
+    if dry_run_enabled; then
+        log_dry_run_action "Would install packages: htop iotop nethogs ncdu"
+        log_dry_run_action "Would optionally install Netdata from $NETDATA_INSTALL_URL"
+    else
+        install_packages htop iotop nethogs ncdu || return 1
+
+        # Install Netdata (optional)
+        if log_confirm "Install Netdata (web-based monitoring)?"; then
+            log_step 2 "Installing Netdata"
+            log_info "This may take several minutes..."
+
+            bash <(curl -Ss "$NETDATA_INSTALL_URL") --dont-wait --disable-telemetry || {
+                log_warn "Netdata installation failed (non-critical)"
+            }
+        fi
     fi
     
     end_timer "monitoring" "Monitoring installation"
@@ -535,9 +630,13 @@ install_wireguard() {
     fi
 
     log_step 1 "Executing WireGuard setup script"
-    if ! bash "${SCRIPTS_DIR}/setup_wireguard.sh"; then
-        log_error "WireGuard setup script failed"
-        return 1
+    if dry_run_enabled; then
+        log_dry_run_action "Would execute ${SCRIPTS_DIR}/setup_wireguard.sh"
+    else
+        if ! bash "${SCRIPTS_DIR}/setup_wireguard.sh"; then
+            log_error "WireGuard setup script failed"
+            return 1
+        fi
     fi
 
     end_timer "wireguard" "WireGuard installation"
@@ -563,18 +662,29 @@ setup_backups() {
             log_error "Missing backup script: $script"
             return 1
         fi
-        chmod +x "$script" || {
-            log_error "Failed to mark $script as executable"
-            return 1
-        }
+        if dry_run_enabled; then
+            log_dry_run_action "Would mark $script as executable"
+        else
+            chmod +x "$script" || {
+                log_error "Failed to mark $script as executable"
+                return 1
+            }
+        fi
     done
 
     log_step 2 "Ensuring backup directories exist"
-    create_directory "$BACKUPS_DIR" 750 "$cron_user" || return 1
-    create_directory "$LOGS_DIR" 750 "$cron_user" || return 1
+    if dry_run_enabled; then
+        log_dry_run_action "Would ensure backup directories exist with secure permissions"
+    else
+        create_directory "$BACKUPS_DIR" 750 "$cron_user" || return 1
+        create_directory "$LOGS_DIR" 750 "$cron_user" || return 1
+    fi
 
     log_step 3 "Registering cron jobs"
-    sudo tee "$cron_file" >/dev/null <<EOCRON
+    if dry_run_enabled; then
+        log_dry_run_action "Would register cron jobs at $cron_file for backup automation"
+    else
+        sudo tee "$cron_file" >/dev/null <<EOCRON
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
@@ -582,9 +692,10 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 30 2 * * 0 ${cron_user} cd "${PROJECT_ROOT}" && bash "${SCRIPTS_DIR}/backup_system.sh" >> "${LOGS_DIR}/backup_cron.log" 2>&1
 EOCRON
 
-    sudo chmod 644 "$cron_file" || log_warn "Failed to set permissions on $cron_file"
+        sudo chmod 644 "$cron_file" || log_warn "Failed to set permissions on $cron_file"
 
-    log_info "Backup cron configuration written to $cron_file"
+        log_info "Backup cron configuration written to $cron_file"
+    fi
     
     end_timer "backups" "Backup setup"
     
@@ -685,20 +796,28 @@ run_mcp_workflow() {
 
     log_section "Instalación del servicio"
     log_step 2 "Ejecutando install_mcp.sh"
-    if ! bash "$installer"; then
-        log_error "Falló la ejecución de install_mcp.sh"
-        return 1
+    if dry_run_enabled; then
+        log_dry_run_action "Would execute $installer"
+    else
+        if ! bash "$installer"; then
+            log_error "Falló la ejecución de install_mcp.sh"
+            return 1
+        fi
     fi
 
     log_section "Validaciones posteriores"
     log_step 3 "Invocando watchdog"
     local watchdog="${REPO_ROOT}/scripts/watchdog_mcp.sh"
-    if [ -x "$watchdog" ]; then
-        if ! bash "$watchdog"; then
-            log_warn "Watchdog MCP reportó incidencias. Revise los logs para más detalles."
-        fi
+    if dry_run_enabled; then
+        log_dry_run_action "Would invoke watchdog at $watchdog"
     else
-        log_warn "No se encontró watchdog MCP ejecutable en $watchdog"
+        if [ -x "$watchdog" ]; then
+            if ! bash "$watchdog"; then
+                log_warn "Watchdog MCP reportó incidencias. Revise los logs para más detalles."
+            fi
+        else
+            log_warn "No se encontró watchdog MCP ejecutable en $watchdog"
+        fi
     fi
 
     log_info "Active el servicio con: sudo systemctl start mcp.service"
@@ -771,6 +890,10 @@ main() {
         log_error "Installation cancelled"
         exit 1
     }
+
+    if dry_run_enabled; then
+        log_info "Dry run mode enabled. No changes will be applied."
+    fi
 
     if auto_mode_enabled; then
         log_info "Automation mode detected. Selected installation type: $install_type"

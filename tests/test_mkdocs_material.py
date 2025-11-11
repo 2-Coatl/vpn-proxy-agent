@@ -46,14 +46,17 @@ class TestMkDocsMaterialConfiguration(unittest.TestCase):
             "pymdownx.tabbed",
             "admonition",
             "pymdownx.details",
+            "pymdownx.plantuml",
         ]:
             with self.subTest(extension=extension):
                 self.assertIn(f"- {extension}", self.mkdocs_text)
 
-    def test_mermaid_fence_configured(self):
+    def test_plantuml_configured(self):
         self.assertIn("custom_fences:", self.mkdocs_text)
-        self.assertIn("name: mermaid", self.mkdocs_text)
-        self.assertIn("class: mermaid", self.mkdocs_text)
+        self.assertIn("name: plantuml", self.mkdocs_text)
+        self.assertIn("class: plantuml", self.mkdocs_text)
+        self.assertIn("pymdownx.plantuml", self.mkdocs_text)
+        self.assertIn("server:", self.mkdocs_text)
 
     def test_theme_uses_builtin_logo_icon(self):
         self.assertIn("icon:", self.mkdocs_text)
@@ -106,22 +109,37 @@ class TestMkDocsSupportingFiles(unittest.TestCase):
             "GitHub Actions workflow should be removed for MkDocs automation",
         )
 
-        script_path = PROJECT_ROOT / "scripts" / "build_docs.sh"
-        self.assertTrue(script_path.is_file(), "scripts/build_docs.sh should exist")
+        build_script = PROJECT_ROOT / "scripts" / "build_docs.sh"
+        self.assertTrue(build_script.is_file(), "scripts/build_docs.sh should exist")
         self.assertTrue(
-            script_path.stat().st_mode & 0o111,
+            build_script.stat().st_mode & 0o111,
             "scripts/build_docs.sh must be executable",
         )
 
-        script_text = script_path.read_text(encoding="utf-8")
-        expected_snippets = [
+        build_text = build_script.read_text(encoding="utf-8")
+        for snippet in [
             "#!/usr/bin/env bash",
             "set -euo pipefail",
             "mkdocs build --config-file docs/mkdocs.yml",
-        ]
-        for snippet in expected_snippets:
+        ]:
             with self.subTest(snippet=snippet):
-                self.assertIn(snippet, script_text)
+                self.assertIn(snippet, build_text)
+
+        serve_script = PROJECT_ROOT / "scripts" / "serve_docs.sh"
+        self.assertTrue(serve_script.is_file(), "scripts/serve_docs.sh should exist")
+        self.assertTrue(
+            serve_script.stat().st_mode & 0o111,
+            "scripts/serve_docs.sh must be executable",
+        )
+
+        serve_text = serve_script.read_text(encoding="utf-8")
+        for snippet in [
+            "#!/usr/bin/env bash",
+            "set -euo pipefail",
+            "mkdocs serve --config-file docs/mkdocs.yml",
+        ]:
+            with self.subTest(snippet=snippet):
+                self.assertIn(snippet, serve_text)
 
 
 if __name__ == "__main__":
