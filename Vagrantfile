@@ -61,7 +61,7 @@ Vagrant.configure("2") do |config|
     type: "virtualbox",
     owner: "vagrant",
     group: "vagrant",
-    mount_options: ["dmode=775", "fmode=664"]
+    mount_options: ["dmode=775", "fmode=775"]
   
   # Create shared directory for artifacts
   config.vm.synced_folder "./artifacts", "/vagrant/artifacts",
