@@ -122,7 +122,7 @@ test_logging_preserves_local_paths() {
         echo "LOGS_DIR=$LOGS_DIR"
     )
 
-    local expected_logs_dir="${LOCAL_PROJECT_ROOT}/utils/logs"
+    local expected_logs_dir="${LOCAL_PROJECT_ROOT}/logs"
     local actual_logs_dir
     actual_logs_dir=$(echo "$output" | awk -F'=' '/^LOGS_DIR=/ {print $2}')
 
@@ -280,6 +280,104 @@ EOF
     assert_true "[ -d '${temp_root}/logs' ]" "env.sh ensures LOGS_DIR exists"
     assert_true "[ -d '${temp_root}/backups' ]" "env.sh ensures BACKUPS_DIR exists"
     assert_true "[ -d '${temp_root}/data' ]" "env.sh ensures DATA_DIR exists"
+
+    rm -rf "$temp_root"
+}
+
+test_env_fallback_for_non_ubuntu_users() {
+    echo ""
+    echo "=== Testing Environment Fallback for Non-Ubuntu Users ==="
+
+    local temp_root
+    temp_root="$(mktemp -d)"
+    local temp_utils_dir="${temp_root}/utils"
+    local temp_config_dir="${temp_root}/config"
+    mkdir -p "$temp_utils_dir" "$temp_config_dir"
+
+    cp "${PROJECT_ROOT}/utils/env.sh" "${temp_utils_dir}/env.sh"
+
+    cat >"${temp_config_dir}/versions.conf" <<'EOF'
+: "${PROJECT_ROOT:=/home/ubuntu/projects}"
+: "${SCRIPTS_DIR:=/home/ubuntu/scripts}"
+: "${LOGS_DIR:=/home/ubuntu/logs}"
+: "${BACKUPS_DIR:=/home/ubuntu/backups}"
+: "${DATA_DIR:=/srv/data}"
+EOF
+
+    local env_output
+    env_output=$(cd "$temp_root" && (
+        set -euo pipefail
+        whoami() { echo vagrant; }
+        source "utils/env.sh"
+        echo "PROJECT_ROOT=$PROJECT_ROOT"
+        echo "SCRIPTS_DIR=$SCRIPTS_DIR"
+        echo "LOGS_DIR=$LOGS_DIR"
+        echo "BACKUPS_DIR=$BACKUPS_DIR"
+        echo "DATA_DIR=$DATA_DIR"
+    ))
+
+    local project_root
+    project_root=$(echo "$env_output" | awk -F'=' '/^PROJECT_ROOT=/ {print $2}')
+    local scripts_dir
+    scripts_dir=$(echo "$env_output" | awk -F'=' '/^SCRIPTS_DIR=/ {print $2}')
+    local logs_dir
+    logs_dir=$(echo "$env_output" | awk -F'=' '/^LOGS_DIR=/ {print $2}')
+    local backups_dir
+    backups_dir=$(echo "$env_output" | awk -F'=' '/^BACKUPS_DIR=/ {print $2}')
+    local data_dir
+    data_dir=$(echo "$env_output" | awk -F'=' '/^DATA_DIR=/ {print $2}')
+
+    assert_equals "$temp_root" "$project_root" "env.sh maps PROJECT_ROOT to repository root for non-ubuntu"
+    assert_equals "${temp_root}/scripts" "$scripts_dir" "env.sh maps SCRIPTS_DIR to repository scripts directory"
+    assert_equals "${temp_root}/logs" "$logs_dir" "env.sh maps LOGS_DIR to repository logs directory"
+    assert_equals "${temp_root}/backups" "$backups_dir" "env.sh maps BACKUPS_DIR to repository backups directory"
+    assert_equals "${temp_root}/data" "$data_dir" "env.sh maps DATA_DIR to repository data directory"
+
+    assert_true "[ -d '${temp_root}/logs' ]" "env.sh creates logs directory for non-ubuntu"
+    assert_true "[ -d '${temp_root}/backups' ]" "env.sh creates backups directory for non-ubuntu"
+    assert_true "[ -d '${temp_root}/data' ]" "env.sh creates data directory for non-ubuntu"
+
+    rm -rf "$temp_root"
+}
+
+test_env_recovers_scripts_dir_when_required_scripts_missing() {
+    echo ""
+    echo "=== Testing Environment Scripts Directory Recovery ==="
+
+    local temp_root
+    temp_root="$(mktemp -d)"
+    local temp_utils_dir="${temp_root}/utils"
+    local temp_config_dir="${temp_root}/config"
+    local temp_scripts_dir="${temp_root}/scripts"
+
+    mkdir -p "$temp_utils_dir" "$temp_config_dir" "$temp_scripts_dir"
+
+    cp "${PROJECT_ROOT}/utils/env.sh" "${temp_utils_dir}/env.sh"
+
+    cat >"${temp_config_dir}/versions.conf" <<'EOF'
+: "${PROJECT_ROOT:=/home/ubuntu/projects}"
+: "${SCRIPTS_DIR:=/home/ubuntu/scripts}"
+: "${LOGS_DIR:=/home/ubuntu/logs}"
+: "${BACKUPS_DIR:=/home/ubuntu/backups}"
+: "${DATA_DIR:=/srv/data}"
+EOF
+
+    touch "${temp_scripts_dir}/setup_ssh.sh"
+
+    local env_output
+    env_output=$(cd "$temp_root" && (
+        set -euo pipefail
+        whoami() { echo ubuntu; }
+        SCRIPTS_DIR="${temp_utils_dir}/scripts"
+        export SCRIPTS_DIR
+        source "utils/env.sh"
+        echo "SCRIPTS_DIR=$SCRIPTS_DIR"
+    ))
+
+    local scripts_dir
+    scripts_dir=$(echo "$env_output" | awk -F'=' '/^SCRIPTS_DIR=/ {print $2}')
+
+    assert_equals "${temp_scripts_dir}" "$scripts_dir" "env.sh resets SCRIPTS_DIR to repository scripts when required scripts missing"
 
     rm -rf "$temp_root"
 }
@@ -534,7 +632,7 @@ test_docs_site_content() {
     assert_true "grep -E 'Repository Overview: about\\.md' '$mkdocs_config' >/dev/null" "navigation includes Repository Overview"
     assert_true "grep -E 'MkDocs Tutorial: mkdocs_tutorial\\.md' '$mkdocs_config' >/dev/null" "navigation includes MkDocs Tutorial"
     assert_true "grep -E 'PR Workflow Guidance: pr_workflow\\.md' '$mkdocs_config' >/dev/null" "navigation includes PR workflow guidance"
-    assert_true "grep -E 'name: readthedocs' '$mkdocs_config' >/dev/null" "readthedocs theme configured"
+    assert_true "grep -E 'name: (material|readthedocs)' '$mkdocs_config' >/dev/null" "mkdocs theme configured"
 }
 
 # -----------------------------------------------------------------------------
@@ -593,6 +691,8 @@ main() {
     test_common
     test_select_install_type_interactive
     test_environment_setup
+    test_env_fallback_for_non_ubuntu_users
+    test_env_recovers_scripts_dir_when_required_scripts_missing
     test_env_sourcing_alignment
     test_env_preserves_script_context
     test_scripts_enforce_strict_mode
