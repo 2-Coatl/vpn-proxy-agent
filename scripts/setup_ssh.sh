@@ -112,6 +112,13 @@ if ! sudo sshd -t -f /etc/ssh/sshd_config; then
     exit 1
 fi
 
+if ! sudo sshd -t -f /etc/ssh/sshd_config; then
+    log_error "SSH configuration validation failed. Restoring previous configuration."
+    sudo mv /etc/ssh/sshd_config.backup /etc/ssh/sshd_config
+    sudo rm -f /etc/ssh/sshd_config.d/99-custom.conf
+    exit 1
+fi
+
 # Restart SSH
 log_step 5 5 "Restarting SSH service"
 if ! sudo systemctl reload ssh; then
